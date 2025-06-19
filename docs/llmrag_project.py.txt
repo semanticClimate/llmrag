@@ -1,0 +1,177 @@
+# Root structure:
+# llmrag/
+# ├── main.py
+# ├── __init__.py
+# ├── chunking/
+# │   ├── __init__.py
+# │   └── text_splitter.py
+# ├── embeddings/
+# │   ├── __init__.py
+# │   ├── base_embedder.py
+# │   └── sentence_transformers_embedder.py
+# ├── models/
+# │   ├── __init__.py
+# │   ├── base_model.py
+# │   └── transformers_model.py
+# ├── pipelines/
+# │   ├── __init__.py
+# │   └── rag_pipeline.py
+# └── retrievers/
+#     ├── __init__.py
+#     ├── base_vector_store.py
+#     └── faiss_store.py
+
+# --- main.py ---
+import yaml
+from llmrag.models import load_model
+from llmrag.embeddings import load_embedder
+from llmrag.retrievers import load_vector_store
+from llmrag.pipelines import RAGPipeline
+
+
+def main(config_path="configs/default.yaml"):
+    config = yaml.safe_load(open(config_path))
+
+    model = load_model(config["llm"])
+    embedder = load_embedder(config["embedding"])
+    retriever = load_vector_store(config["vector_store"], embedder)
+
+    pipeline = RAGPipeline(model=model, retriever=retriever)
+
+    print("RAG Chatbot System Ready. Type your question below:\n")
+    while True:
+        query = input("You: ")
+        if query.lower() in ["exit", "quit"]:
+            break
+        response = pipeline.query(query)
+        print("Bot:", response)
+
+
+if __name__ == "__main__":
+    main()
+
+# --- __init__.py (in root llmrag/) ---
+# empty or just: 
+
+# --- chunking/__init__.py ---
+from llmrag.chunking.text_splitter import split_documents
+
+# --- chunking/text_splitter.py ---
+def split_documents(text, chunk_size=100, overlap=20):
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        chunks.append(text[start:end])
+        start += chunk_size - overlap
+    return chunks
+
+# --- embeddings/__init__.py ---
+from llmrag.embeddings.sentence_transformers_embedder import SentenceTransformersEmbedder
+
+def load_embedder(config):
+    return SentenceTransformersEmbedder(
+        model_name=config.get("model_name", "all-MiniLM-L6-v2"),
+        device=config.get("device", "cpu")
+    )
+
+# --- embeddings/base_embedder.py ---
+from abc import ABC, abstractmethod
+
+class BaseEmbedder(ABC):
+    @abstractmethod
+    def embed(self, texts):
+        pass
+
+# --- embeddings/sentence_transformers_embedder.py ---
+from sentence_transformers import SentenceTransformer
+from llmrag.embeddings.base_embedder import BaseEmbedder
+
+class SentenceTransformersEmbedder(BaseEmbedder):
+    def __init__(self, model_name="all-MiniLM-L6-v2", device="cpu"):
+        self.model = SentenceTransformer(model_name, device=device)
+
+    def embed(self, texts):
+        return self.model.encode(texts)
+
+# --- models/__init__.py ---
+from llmrag.models.transformers_model import TransformersModel
+
+def load_model(config):
+    return TransformersModel(
+        model_name=config.get("model_name", "gpt2"),
+        device=config.get("device", "cpu")
+    )
+
+# --- models/base_model.py ---
+from abc import ABC, abstractmethod
+
+class BaseModel(ABC):
+    @abstractmethod
+    def generate(self, prompt):
+        pass
+
+# --- models/transformers_model.py ---
+from transformers import pipeline
+from llmrag.models.base_model import BaseModel
+
+class TransformersModel(BaseModel):
+    def __init__(self, model_name="gpt2", device="cpu"):
+        self.generator = pipeline("text-generation", model=model_name, device=0 if device=="cuda" else -1)
+
+    def generate(self, prompt):
+        return self.generator(prompt, max_length=200)[0]['generated_text']
+
+# --- pipelines/__init__.py ---
+from llmrag.pipelines.rag_pipeline import RAGPipeline
+
+# --- pipelines/rag_pipeline.py ---
+class RAGPipeline:
+    def __init__(self, model, retriever):
+        self.model = model
+        self.retriever = retriever
+
+    def query(self, question):
+        docs = self.retriever.retrieve(question)
+        context = "\n".join(docs)
+        prompt = f"Answer the question based on the context:\n{context}\n\nQuestion: {question}\nAnswer:"
+        return self.model.generate(prompt)
+
+# --- retrievers/__init__.py ---
+from llmrag.retrievers.faiss_store import FAISSVectorStore
+
+def load_vector_store(config, embedder):
+    return FAISSVectorStore(embedder)
+
+# --- retrievers/base_vector_store.py ---
+from abc import ABC, abstractmethod
+
+class BaseVectorStore(ABC):
+    @abstractmethod
+    def add_documents(self, docs):
+        pass
+
+    @abstractmethod
+    def retrieve(self, query):
+        pass
+
+# --- retrievers/faiss_store.py ---
+import faiss
+import numpy as np
+from llmrag.retrievers.base_vector_store import BaseVectorStore
+
+class FAISSVectorStore(BaseVectorStore):
+    def __init__(self, embedder):
+        self.embedder = embedder
+        self.index = faiss.IndexFlatL2(384)  # Adjust dim to match embedder
+        self.texts = []
+
+    def add_documents(self, docs):
+        embeddings = self.embedder.embed(docs)
+        self.index.add(np.array(embeddings).astype("float32"))
+        self.texts.extend(docs)
+
+    def retrieve(self, query, top_k=3):
+        query_embedding = self.embedder.embed([query])
+        distances, indices = self.index.search(np.array(query_embedding).astype("float32"), top_k)
+        return [self.texts[i] for i in indices[0] if i < len(self.texts)]

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmrag"
+version = "0.1.0"
+description = "A modular LLM + RAG system"
+authors = [{ name="Your Name", email="you@example.com" }]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "transformers",
+    "sentence-transformers",
+    "faiss-cpu",
+    "PyYAML"
+]
+
+[project.scripts]
+llmrag = "llmrag.main:main"
