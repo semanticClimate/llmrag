@@ -26,5 +26,5 @@ jobs:
 
       - name: Run unittests
         run: |
-          coverage run -m unittest discover -s llmrag/tests
+          coverage run -m unittest discover -s tests
           coverage report -m
