@@ -6,5 +6,5 @@ class RAGPipeline:
     def query(self, question):
         docs = self.retriever.retrieve(question)
         context = "\n".join(docs)
-        prompt = f"{context}\n\nQuestion: {question}\nAnswer:"
+        prompt = f"Answer the question based on the context:\n{context}\n\nQuestion: {question}\nAnswer:"
         return self.model.generate(prompt)

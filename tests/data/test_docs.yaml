@@ -1,0 +1,17 @@
+llm:
+  model_name: "gpt2"
+  device: "cpu"
+
+embedding:
+  model_name: "all-MiniLM-L6-v2"
+  device: "cpu"
+
+vector_store:
+  type: "chroma"
+
+documents:
+  - "Artificial Intelligence (AI) is the simulation of human intelligence in machines."
+  - "Machine Learning is a subset of AI focused on training algorithms."
+  - "Natural Language Processing enables computers to understand human language."
+  - "Deep Learning uses neural networks with many layers."
+  - "The Transformer architecture revolutionized NLP tasks."

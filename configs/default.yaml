@@ -1,9 +1,10 @@
 llm:
   model_name: "gpt2"
+  device: "cpu"
 
 embedding:
-  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  model_name: "all-MiniLM-L6-v2"
+  device: "cpu"
 
 vector_store:
-  type: "faiss"
-  index_path: "faiss_index"
+  type: "chroma"
