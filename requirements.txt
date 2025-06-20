@@ -1,7 +1,9 @@
-transformers
-sentence-transformers
 chromadb
-PyYAML
 coverage
-rich
+langchain>=0.1.0
 pytest
+PyYAML
+rich
+sentence-transformers
+streamlit
+transformers

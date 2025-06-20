@@ -13,3 +13,7 @@ class SentenceTransformersEmbedder(BaseEmbedder):
 
     def embed_query(self, query: str) -> List[float]:
         return self.model.encode(query, convert_to_numpy=True).tolist()
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.model.encode(texts, convert_to_tensor=False).tolist()
+

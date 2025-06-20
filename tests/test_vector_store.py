@@ -31,7 +31,7 @@ class TestChromaStore(unittest.TestCase):
 
     def setUp(self):
         self.embedder = SentenceTransformersEmbedder("all-MiniLM-L6-v2")
-        self.store = ChromaVectorStore("test_store", self.embedder)
+        self.store = ChromaVectorStore(self.embedder, "test_store")
         self.docs = ["Paris is the capital of France."]
         self.store.add_texts(self.docs)
 
@@ -59,4 +59,6 @@ class TestChromaStore(unittest.TestCase):
         results = self.store.search(query_embedding)
         print("Retrieved:", results)
         self.assertTrue(len(results) > 0)
-        self.assertTrue(any("Paris" in doc.page_content for doc in results))
+        # for tuple in results:
+        #     print(f"{len(tuple)}:: {tuple[0]}, {tuple[1]}")
+        self.assertTrue(any("Paris" in tuple[0] for tuple in results))

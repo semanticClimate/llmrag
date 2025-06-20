@@ -62,7 +62,7 @@ def main():
 
     logger.info("RAG Chatbot System Ready. Type your question below (type 'exit' to quit):\n")
     while True:
-        query = input("You: ")
+        query = input("Enter Query (exit or quit to finish): ")
         if query.lower() in ["exit", "quit"]:
             break
         response = pipeline.query(query)
