@@ -1,0 +1,22 @@
+Example Usage
+bash
+Copy
+Edit
+# With inline question and custom doc file
+python -m llmrag.cli --query "What is artificial intelligence?" --doc-file sample.txt
+
+# With custom embedding and temperature
+python -m llmrag.cli --query "Explain transformers" --embedding-model all-MiniLM-L6-v2 --temperature 0.85
+
+# With GPU
+python -m llmrag.cli --query "What is deep learning?" --device cuda
+
+=========
+
+typical CLI
+python cli.py \
+  --query "What is AI?" \
+  --doc_dir ./examples/context \
+  --model_name gpt2 \
+  --embedding_model all-MiniLM-L6-v2 \
+  --vector_store_type chroma
