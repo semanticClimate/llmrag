@@ -56,9 +56,9 @@ def main():
     embedder = load_embedder(config["embedding"])
 
     logger.info("Initializing vector store...")
-    retriever = load_vector_store(config["vector_store"], embedder)
+    vector_store = load_vector_store(config["vector_store"], embedder)
 
-    pipeline = RAGPipeline(model=model, retriever=retriever)
+    pipeline = RAGPipeline(model=model, vector_store=vector_store)
 
     logger.info("RAG Chatbot System Ready. Type your question below (type 'exit' to quit):\n")
     while True:

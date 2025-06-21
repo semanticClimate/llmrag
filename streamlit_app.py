@@ -4,7 +4,9 @@ from llmrag.pipelines.rag_pipeline import RAGPipeline
 
 # Initialize pipeline
 @st.cache_resource
+
 def load_pipeline():
+    """TODO this needes a vector_store and model"""
     return RAGPipeline()
 
 

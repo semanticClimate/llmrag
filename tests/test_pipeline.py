@@ -1,6 +1,9 @@
 import unittest
 import yaml
 import os
+
+from langchain.schema import Document
+
 from llmrag.embeddings import load_embedder
 from llmrag.models import load_model
 from llmrag.retrievers import load_vector_store
@@ -12,11 +15,19 @@ class TestRAGPipeline(unittest.TestCase):
         config_path = os.path.join(os.path.dirname(__file__), "data", "test_docs.yaml")
         with open(config_path, "r") as f:
             cls.test_config = yaml.safe_load(f)
+
         cls.model = load_model(cls.test_config["llm"])
         cls.embedder = load_embedder(cls.test_config["embedding"])
         cls.vector_store = load_vector_store(cls.test_config["vector_store"], cls.embedder)
-        cls.vector_store.add_documents(cls.test_config["documents"])
-        cls.pipeline = RAGPipeline(cls.model, cls.vector_store)
+
+        # ✅ Convert strings to Documents with default metadata
+        cls.test_documents = [
+            Document(page_content=text, metadata={"source": f"test_doc_{i}"})
+            for i, text in enumerate(cls.test_config["documents"])
+        ]
+        cls.vector_store.add_documents(cls.test_documents)
+
+        cls.pipeline = RAGPipeline(model=cls.model, vector_store=cls.vector_store)
 
     def test_retrieve_and_generate(self):
         question = "What is AI?"

@@ -1,23 +1,66 @@
-class RAGPipeline:
-    def __init__(self, model, retriever):
-        self.model = model
-        self.retriever = retriever
+from llmrag.retrievers.chroma_store import ChromaVectorStore
+from llmrag.generators.local_generator import LocalGenerator
+from langchain.schema import Document
 
-    def query(self, question):
-        docs = self.retriever.retrieve(question)
+class RAGPipeline:
+
+    def __init__(self, *, model, vector_store):
+        """
+        Initializes the RAGPipeline with a model and a vector store.
+
+        Args:
+            model: An object that implements `generate(prompt: str, temperature: float) -> str`.
+            vector_store: An object that implements `retrieve(query: str, top_k: int) -> list[Document]`.
+
+        Raises:
+            ValueError: If either `model` or `vector_store` is None.
+        """
+        if model is None:
+            raise ValueError("`model` must be provided and non-None")
+        if vector_store is None:
+            raise ValueError("`vector_store` must be provided and non-None")
+
+        self.model = model
+        self.vector_store = vector_store
+
+    def query(self, question: str, top_k=4, temperature=0.7) -> str:
+        """
+        Answer a question using the RAG approach.
+
+        Args:
+            question (str): The input question to answer.
+            top_k (int): Number of top documents to retrieve for context. Defaults to 4.
+            temperature (float): Sampling temperature for the language model. Defaults to 0.7.
+
+        Returns:
+            str: The generated answer based on retrieved context.
+        """
+
+
+        docs = self.vector_store.retrieve(question, top_k=top_k)
         context = "\n".join(doc.page_content for doc in docs)
-        prompt = f"Answer the question based on the context:\n{context}\n\nQuestion: {question}\nAnswer:"
+
+        prompt = f"""Use the following context to answer the question:
+{context}
+
+Question: {question}
+Answer:"""
+
+        return self.model.generate(prompt, temperature=temperature)
+
+    def run(self, query: str) -> str:
+        """
+        Runs the RAG pipeline: retrieves documents and generates an answer.
+
+        Args:
+            query: The user query.
+
+        Returns:
+            The generated answer string.
+        """
+        documents = self.vector_store.retrieve(query)
+        context = "\n".join(doc.page_content for doc in documents)
+        prompt = f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
         return self.model.generate(prompt)
 
-    # def __init__(self, retriever, generator):
-    #     self.retriever = retriever
-    #     self.generator = generator
-    #
-    # def query(self, question: str):
-    #     docs = self.retriever.retrieve(question)
-    #     # Join the page_content strings of the Documents
-    #     context = "\n".join(doc.page_content for doc in docs)
-    #
-    #     # Generate answer using your generator (example)
-    #     answer = self.generator.generate(context, question)
-    #     return answer
+
