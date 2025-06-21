@@ -9,8 +9,7 @@ class FAISSVectorStore:
         self.documents = []
         self.embedder = embedder
 
-    def
-        (self, documents: List[str], embeddings: List[List[float]]) -> None:
+    def add_documents (self, documents: List[str], embeddings: List[List[float]]) -> None:
         dim = len(embeddings[0])
         if self.index is None:
             self.index = faiss.IndexFlatL2(dim)
