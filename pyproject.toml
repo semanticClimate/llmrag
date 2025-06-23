@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "llmrag"
 version = "0.1.0"
 description = "A modular LLM + RAG system"
-authors = [{ name="Your Name", email="you@example.com" }]
+authors = [{ name="Peter Murray-Rust", email="peter.murray.rust@googlemail.com" }, {name="Sarth Shah", email="sarthshah2005@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
