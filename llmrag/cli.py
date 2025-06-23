@@ -60,11 +60,7 @@ def main():
                     file_path = os.path.join(root, fname)
                     documents.extend(load_documents_from_file(file_path))
 
-
-
     pipeline = build_pipeline(args.model_name, args.embedding_model, args.vector_store_type, documents)
-
-
 
     if documents:
         print(f"📚 Adding {len(documents)} documents to vector store...")
