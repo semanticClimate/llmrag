@@ -45,5 +45,5 @@ to print the coverage:
 
 # BUGS
 
-We run on Python 3.12. This can cause problems with some librraies, such as NumPy. Although `numpy` is not included in `llmrag` at present it may be in your environment. *ALWAYS USE A VIRTUAL ENVIRONMENT*
+We run on Python 3.12. This can cause problems with some libraries, such as NumPy. Although `numpy` is not included in `llmrag` at present it may be in your environment. *ALWAYS USE A VIRTUAL ENVIRONMENT*
 
