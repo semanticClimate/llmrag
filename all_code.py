@@ -1,1 +1,0 @@
-TypeError: Can't instantiate abstract class SentenceTransformersEmbedder with abstract methods embed_documents, embed_query

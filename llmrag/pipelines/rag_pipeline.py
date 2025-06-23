@@ -23,28 +23,28 @@ class RAGPipeline:
         self.model = model
         self.vector_store = vector_store
 
-    def query(self, question: str, top_k=4, temperature=0.7) -> str:
-        """
-        Answer a question using the RAG approach.
-
-        Args:
-            question (str): The input question to answer.
-            top_k (int): Number of top documents to retrieve for context. Defaults to 4.
-            temperature (float): Sampling temperature for the language model. Defaults to 0.7.
-
-        Returns:
-            str: The generated answer based on retrieved context.
-        """
-
-
+    def query(self, question: str, top_k=4, temperature=0.3) -> str:
         docs = self.vector_store.retrieve(question, top_k=top_k)
-        context = "\n".join(doc.page_content for doc in docs)
 
-        prompt = f"""Use the following context to answer the question:
-{context}
+        # Deduplicate context to reduce redundancy
+        seen = set()
+        unique_docs = []
+        for doc in docs:
+            if doc.page_content not in seen:
+                seen.add(doc.page_content)
+                unique_docs.append(doc)
 
-Question: {question}
-Answer:"""
+        context = "\n".join(doc.page_content for doc in unique_docs)
+
+        # Clear instruction with delimiter to prevent multiple QA pairs
+        prompt = f"""You are a helpful assistant. Use ONLY the following context to answer the user's question.
+    If the answer is not in the context, say "I don't know."
+
+    Context:
+    {context}
+
+    Question: {question}
+    Answer:"""
 
         return self.model.generate(prompt, temperature=temperature)
 

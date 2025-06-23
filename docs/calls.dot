@@ -1,0 +1,18 @@
+digraph LLM_RAG {
+    rankdir=LR
+    node [shape=box, style=filled, fillcolor=lightblue]
+
+    UserInput -> RAGPipeline
+    RAGPipeline -> Retriever [label="retrieve()"]
+    Retriever -> ChromaVectorStore
+    ChromaVectorStore -> ChromaDB
+
+    RAGPipeline -> Generator [label="generate()"]
+    Generator -> LocalGenerator
+    LocalGenerator -> TransformersModel
+
+    ChromaVectorStore -> SentenceTransformersEmbedder [label="embed_query() / embed_documents()"]
+
+    SentenceTransformersEmbedder -> SentenceTransformer [label="encode()"]
+    TransformersModel -> HuggingFacePipeline [label="pipeline('text-generation')"]
+}

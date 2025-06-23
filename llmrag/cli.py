@@ -26,8 +26,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run a CLI RAG pipeline")
 
     parser.add_argument("--query", type=str, help="The input query to answer")
-    parser.add_argument("--doc_file", type=str, help="A single file to load as context")
-    parser.add_argument("--doc_dir", type=str, help="Directory of documents to load as context")
+    parser.add_argument("--context_file", type=str, help="A single file to load as context")
+    parser.add_argument("--context_dir", type=str, help="Directory of documents to load as context")
 
     parser.add_argument("--model_name", type=str, default="gpt2", help="Name of the LLM to use")
     parser.add_argument("--embedding_model", type=str, default="all-MiniLM-L6-v2", help="Sentence transformer model")
