@@ -1,6 +1,7 @@
 chromadb
 coverage
 langchain>=0.1.0
+lxml
 pytest
 PyYAML
 rich
