@@ -8,13 +8,25 @@ from lxml import etree as ET
 
 class TestChunking(unittest.TestCase):
     def test_split_documents(self):
+        """
+        Tests split_documents() with simple string and chunking parameters
+
+        Returns
+        -------
+
+        """
         text = "abcdefghijklmnopqrstuvwxyz"
         chunks = split_documents(text, chunk_size=10, overlap=2)
+        self.assertEqual(len(chunks), 3)
         self.assertEqual(chunks[0], "abcdefghij")
+        self.assertEqual(chunks[1], "ijklmnopqr")
+        self.assertEqual(chunks[2], "qrstuvwxyz")
         self.assertEqual(chunks[1][:2], "ij")  # Overlap check
 
     def test_split_html_with_ids(self):
         """
+        tests create_chunks() with chapter-specific paramters
+         
         customise this to extract chunks out of YOUR chapter
         (mine was wg1/chapter04)
         Returns
@@ -23,10 +35,12 @@ class TestChunking(unittest.TestCase):
         """
         test_dir = Path("tests", "ipcc")
         assert test_dir.exists(), f"{test_dir} should exist"
+        # chapter parameters
         wg = "wg1"
         chapter = "chapter04"
-        div_id = "4.1"
-        p_count = 12
+        div_id = "4.1" # id of introduction
+        p_count = 12 # number of paragraphs
+
         chunks = self.create_chunks(test_dir, wg, chapter, div_id, p_count)
         for chunk in chunks:
             print(f"{len(chunk)}: {chunk[:200]}")
