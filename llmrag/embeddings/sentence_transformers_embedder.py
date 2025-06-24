@@ -1,6 +1,7 @@
 from typing import List
-from sentence_transformers import SentenceTransformer
+from langchain.schema import Document
 from llmrag.embeddings.base_embedder import BaseEmbedder
+from sentence_transformers import SentenceTransformer
 
 class SentenceTransformersEmbedder(BaseEmbedder):
     """
@@ -32,8 +33,10 @@ sentence_transformer
         Returns:
             list[list[float]]: Embeddings for each text.
         """
-        return self.model.encode(texts).tolist()
+        if isinstance(texts[0], Document):
+            texts = [doc.page_content for doc in texts]
 
+        return self.model.encode(texts).tolist()
     def embed_query(self, query: str) -> List[float]:
         """
         Embed a single query string.

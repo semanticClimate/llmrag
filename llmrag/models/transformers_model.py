@@ -18,17 +18,6 @@ class TransformersModel(BaseModel):
         device_id = 0 if device == "cuda" else -1
         self.generator = pipeline("text-generation", model=model_name, device=device_id)
 
-    # def generate(self, prompt):
-    #     """
-    #     Generate a response to the given prompt.
-    #
-    #     Args:
-    #         prompt (str): The input prompt for text generation.
-    #
-    #     Returns:
-    #         str: The generated text.
-    #     """
-    #     return self.generator(prompt, max_length=200)[0]['generated_text']
 
     def generate(self, prompt: str, temperature: float = 0.7) -> str:
         return self.generator(

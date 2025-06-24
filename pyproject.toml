@@ -1,20 +1,13 @@
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "llmrag"
 version = "0.1.0"
-description = "A modular LLM + RAG system"
-authors = [{ name="Peter Murray-Rust", email="peter.murray.rust@googlemail.com" }, {name="Sarth Shah", email="sarthshah2005@gmail.com"}]
+description = "Local RAG pipeline with chunking, embedding, and retrieval"
 readme = "README.md"
-requires-python = ">=3.8"
-dependencies = [
-    "transformers",
-    "sentence-transformers",
-    "faiss-cpu",
-    "PyYAML"
-]
+requires-python = ">=3.9"
+dependencies = []
 
-[project.scripts]
-llmrag = "llmrag.main:main"
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]

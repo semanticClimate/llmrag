@@ -50,17 +50,14 @@ class RAGPipeline:
 
     def run(self, query: str) -> str:
         """
-        Runs the RAG pipeline: retrieves documents and generates an answer.
+            Runs the RAG pipeline: retrieves documents and generates an answer.
 
-        Args:
-            query: The user query.
+            Args:
+                query: The user query.
 
-        Returns:
-            The generated answer string.
-        """
+            Returns:
+                The generated answer string.
+            """
         documents = self.vector_store.retrieve(query)
-        context = "\n".join(doc.page_content for doc in documents)
-        prompt = f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
-        return self.model.generate(prompt)
-
+        return self.model.generate(query, documents)
 

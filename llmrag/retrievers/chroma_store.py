@@ -5,8 +5,10 @@ from typing import List, Tuple
 
 import chromadb
 from chromadb.config import Settings
-from llmrag.retrievers.base_vector_store import BaseVectorStore
+from chromadb import PersistentClient
 from langchain.schema import Document
+
+from llmrag.retrievers.base_vector_store import BaseVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +16,9 @@ class ChromaVectorStore(BaseVectorStore):
     def __init__(self, embedder, collection_name="rag_collection", persist=True):
         self.embedder = embedder
         self.collection_name = collection_name
-        self.persist = persist
+        self.should_persist = persist
 
-        if persist:
+        if self.should_persist:
             self.chroma_path = "./chroma_db"
         else:
             # Use a temporary directory for test
@@ -30,18 +32,24 @@ class ChromaVectorStore(BaseVectorStore):
         self.docs = []
         self.collection = self.client.get_or_create_collection(self.collection_name)
 
-    # def add_documents(self, docs):
-    #     embeddings = self.embedder.embed(docs)
-    #     ids = [f"doc_{i}" for i in range(len(self.docs), len(self.docs) + len(docs))]
-    #     self.collection.add(
-    #         documents=docs,
-    #         embeddings=embeddings,
-    #         ids=ids
-    #     )
-    #     self.docs.extend(docs)
-
-
+    def persist(self):
+        if self.should_persist and hasattr(self.client, "persist"):
+            self.client.persist()
     # =================
+
+    def similarity_search(self, query: str, top_k: int = 3):
+        """
+        Compatibility method for tests expecting a `similarity_search` method.
+        Internally calls the `retrieve()` method.
+
+        Args:
+            query (str): The user query.
+            top_k (int): Number of top results to return.
+
+        Returns:
+            List[Document]: Top matching documents.
+        """
+        return self.retrieve(query, top_k)
 
     def search(self, query_embedding: List[float], top_k: int = 5) -> List[Tuple[str, float]]:
         if self.collection is None:
@@ -64,7 +72,7 @@ class ChromaVectorStore(BaseVectorStore):
 
     def cleanup(self):
         # Only cleanup if it was a temp dir
-        if not self.persist and hasattr(self, "_temp_dir"):
+        if not self.should_persist and hasattr(self, "_temp_dir"):
             shutil.rmtree(self._temp_dir, ignore_errors=True)
 
 

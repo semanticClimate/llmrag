@@ -1,19 +1,20 @@
-def split_documents(text, chunk_size=100, overlap=20):
-    """
-    Splits a large text into overlapping chunks.
+from langchain.schema import Document
 
-    Args:
-        text (str): The input text to split.
-        chunk_size (int): Size of each chunk.
-        overlap (int): Number of overlapping characters between chunks.
+from langchain.schema import Document
 
-    Returns:
-        list[str]: List of text chunks.
-    """
+def split_documents(text, chunk_size=100, overlap=20, metadata=None):
     chunks = []
     start = 0
+    chunk_index = 0
+
     while start < len(text):
         end = min(start + chunk_size, len(text))
-        chunks.append(text[start:end])
-        start += chunk_size - overlap
+        chunk_text = text[start:end]
+        # Merge original metadata with chunk index
+        chunk_metadata = dict(metadata or {})
+        chunk_metadata["chunk_index"] = chunk_index
+        chunks.append(Document(page_content=chunk_text, metadata=chunk_metadata))
+        chunk_index += 1
+        start = end - overlap  # slide window with overlap
+
     return chunks
