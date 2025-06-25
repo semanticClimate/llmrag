@@ -17,7 +17,7 @@ def test_paragraphs_loaded_correctly():
     assert all(isinstance(doc.page_content, str) for doc in docs)
 
 
-@unittest.skip("infinite loop?")
+# @unittest.skip("infinite loop?")
 def test_chunking_preserves_metadata():
     """Test that chunking a document preserves original metadata and appends a chunk index."""
     nparas = 2
@@ -35,7 +35,7 @@ def test_chunking_preserves_metadata():
         assert chunk.metadata["chunk"] == i
 
 
-@unittest.skip("infinite loop?")
+# @unittest.skip("infinite loop?")
 def test_no_chunking_if_short():
     """Test that a short document below chunk size is returned unaltered and without chunk index."""
     short_text = "A short paragraph."
