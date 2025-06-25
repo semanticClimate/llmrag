@@ -1,0 +1,84 @@
+diff --git a/llmrag/models/transformers_model.py b/llmrag/models/transformers_model.py
+index 1234567..89abcde 100644
+--- a/llmrag/models/transformers_model.py
++++ b/llmrag/models/transformers_model.py
+@@ class TransformersModel(BaseModel):
+     def __init__(self, generator, model_name="gpt2", max_tokens=1024):
+         self.generator = generator
+         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+         self.max_input_tokens = max_tokens - 200  # leave space for output
+ 
+     def generate(self, query: str, documents: list[Document]) -> str:
+         # Join documents
+         context = "\n\n".join(doc.page_content for doc in documents)
+ 
+         # Token-based truncation
+         tokens = self.tokenizer.encode(context, truncation=True, max_length=self.max_input_tokens)
+         truncated_context = self.tokenizer.decode(tokens, skip_special_tokens=True)
+
+         # Prompt
+         prompt = f"""Use the following context to answer the question.
+
+Context:
+{truncated_context}
+
+Question: {query}
+
+Answer:"""
+
+         # Generate text
+         result = self.generator(prompt, max_new_tokens=200)
+
+         # Return generated part only
+         return result[0]["generated_text"].split("Answer:")[-1].strip()
+
+diff --git a/main.py b/main.py
+index abcdef0..1122334 100644
+--- a/main.py
++++ b/main.py
+@@ def main():
+     print("\n=== Answer ===")
+-    print(result["answer"])
++    print(result)
+
+diff --git a/llmrag/pipelines/rag_pipeline.py b/llmrag/pipelines/rag_pipeline.py
+index 1111111..2222222 100644
+--- a/llmrag/pipelines/rag_pipeline.py
++++ b/llmrag/pipelines/rag_pipeline.py
+@@ def run(self, query):
+-    documents = self.retriever.retrieve(query)
+-    return self.model.generate(query, documents)
++    documents = self.retriever.retrieve(query)
++    top_documents = documents[:10]  # truncate to top 10 chunks
++    return self.model.generate(query, top_documents)
+
+diff --git a/llmrag/ingest/html_ingestor.py b/llmrag/ingest/html_ingestor.py
+index 3333333..4444444 100644
+--- a/llmrag/ingest/html_ingestor.py
++++ b/llmrag/ingest/html_ingestor.py
+@@ def extract_chunks_from_html(html_path, xpath=None):
+     html = Path(html_path).read_text()
+     soup = BeautifulSoup(html, "lxml")
+
+     if xpath:
+         from lxml import etree
+         dom = etree.HTML(html)
+         selected = dom.xpath(xpath)
+         text = "\n".join([etree.tostring(el, method='text', encoding='unicode') for el in selected])
+     else:
+         text = soup.get_text()
+
+     return chunk_text(text)
+
+diff --git a/main.py b/main.py
+@@ def parse_args():
+     parser.add_argument("--html", type=str, help="Path to HTML file")
+     parser.add_argument("--query", type=str, help="Query string")
++    parser.add_argument("--xpath", type=str, default=None, help="Optional XPath to extract HTML")
+     return parser.parse_args()
+
+@@ def main():
+     if args.html:
+-        chunks = extract_chunks_from_html(args.html)
++        chunks = extract_chunks_from_html(args.html, xpath=args.xpath)
+

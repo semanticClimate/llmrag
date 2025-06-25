@@ -7,4 +7,5 @@ PyYAML
 rich
 sentence-transformers
 streamlit
+toml
 transformers
