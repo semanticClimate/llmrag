@@ -48,16 +48,37 @@ class RAGPipeline:
 
         return self.model.generate(prompt, temperature=temperature)
 
-    def run(self, query: str) -> str:
+    def run(self, query: str) -> dict:
         """
-            Runs the RAG pipeline: retrieves documents and generates an answer.
+        Runs the RAG pipeline: retrieves documents and generates an answer.
 
-            Args:
-                query: The user query.
+        Args:
+            query: The user query.
 
-            Returns:
-                The generated answer string.
-            """
+        Returns:
+            dict: A dictionary containing:
+                - answer: The generated answer string
+                - context: List of retrieved documents
+                - paragraph_ids: List of unique paragraph IDs from the context documents
+        """
         documents = self.vector_store.retrieve(query)
-        return self.model.generate(query, documents)
+        answer = self.model.generate(query, documents=documents)
+        
+        # Extract paragraph IDs from the retrieved documents
+        paragraph_ids = []
+        for doc in documents:
+            if hasattr(doc, 'metadata') and doc.metadata:
+                if 'paragraph_ids' in doc.metadata and doc.metadata['paragraph_ids']:
+                    # Split comma-separated string back into list
+                    ids = doc.metadata['paragraph_ids'].split(',')
+                    paragraph_ids.extend([id.strip() for id in ids if id.strip()])
+        
+        # Remove duplicates while preserving order
+        unique_paragraph_ids = list(dict.fromkeys(paragraph_ids))
+        
+        return {
+            "answer": answer,
+            "context": documents,
+            "paragraph_ids": unique_paragraph_ids
+        }
 
