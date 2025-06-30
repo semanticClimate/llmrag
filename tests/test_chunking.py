@@ -4,7 +4,6 @@ import pytest
 from langchain.schema import Document
 
 from llmrag.utils.yaml_loader import load_paragraphs_yaml
-# from split_document_with_metadata import split_document
 from llmrag.chunking.text_splitter import split_documents
 
 
