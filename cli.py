@@ -1,5 +1,5 @@
 import argparse
-from llmrag.ingest_html import ingest_html_file
+from llmrag.ingestion.ingest_html import ingest_html_file
 from llmrag.pipelines.rag_pipeline import RAGPipeline
 
 def run_ingest_html(args):
