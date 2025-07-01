@@ -18,10 +18,12 @@ This system helps researchers, policymakers, and students quickly find and under
 ## 🚀 Quick Start (5 minutes)
 
 ### 1. Install Python
-First, make sure you have Python installed:
+First, make sure you have Python 3.12+ installed:
 - **Windows**: Download from [python.org](https://www.python.org/downloads/)
-- **Mac**: Usually pre-installed, or use [Homebrew](https://brew.sh)
-- **Linux**: `sudo apt install python3 python3-pip`
+- **Mac**: Usually pre-installed, or use [Homebrew](https://brew.sh): `brew install python@3.12`
+- **Linux**: `sudo apt install python3.12 python3.12-pip`
+
+**Note**: This system requires Python 3.12 or higher for optimal performance and compatibility.
 
 ### 2. Download and Setup
 ```bash

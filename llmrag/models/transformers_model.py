@@ -116,17 +116,32 @@ ANSWER:"""
             prompt = prompt_or_query
 
         if self.use_pipeline:
-            # Use pipeline for smaller models
-            response = self.generator(
-                prompt, 
-                max_new_tokens=300,  # Increased for more detailed answers
-                temperature=temperature,
-                pad_token_id=50256,
-                do_sample=True,
-                top_p=0.9,  # Add nucleus sampling for better quality
-                repetition_penalty=1.1  # Reduce repetition
-            )
-            return response[0]["generated_text"]
+            # Use pipeline for smaller models with safer parameters
+            try:
+                response = self.generator(
+                    prompt, 
+                    max_new_tokens=150,  # Reduced for stability
+                    temperature=min(temperature, 0.8),  # Cap temperature
+                    pad_token_id=50256,
+                    do_sample=True,
+                    top_p=0.85,  # Slightly more conservative
+                    repetition_penalty=1.05,  # Reduced penalty
+                    num_return_sequences=1
+                )
+                return response[0]["generated_text"]
+            except RuntimeError as e:
+                if "probability tensor" in str(e):
+                    # Fallback to more conservative parameters
+                    response = self.generator(
+                        prompt,
+                        max_new_tokens=50,
+                        temperature=0.5,
+                        do_sample=False,  # Use greedy decoding
+                        pad_token_id=50256
+                    )
+                    return response[0]["generated_text"]
+                else:
+                    raise e
         else:
             # Direct generation for larger models
             inputs = self.tokenizer.encode(prompt, return_tensors="pt")
@@ -142,17 +157,31 @@ ANSWER:"""
             attention_mask = torch.ones_like(inputs)
             
             with torch.no_grad():
-                outputs = self.model.generate(
-                    inputs,
-                    attention_mask=attention_mask,
-                    max_new_tokens=300,
-                    temperature=temperature,
-                    do_sample=True,
-                    top_p=0.9,
-                    repetition_penalty=1.1,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id
-                )
+                try:
+                    outputs = self.model.generate(
+                        inputs,
+                        attention_mask=attention_mask,
+                        max_new_tokens=150,  # Reduced for stability
+                        temperature=min(temperature, 0.8),  # Cap temperature
+                        do_sample=True,
+                        top_p=0.85,  # More conservative
+                        repetition_penalty=1.05,  # Reduced penalty
+                        pad_token_id=self.tokenizer.eos_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id
+                    )
+                except RuntimeError as e:
+                    if "probability tensor" in str(e):
+                        # Fallback to greedy decoding
+                        outputs = self.model.generate(
+                            inputs,
+                            attention_mask=attention_mask,
+                            max_new_tokens=50,
+                            do_sample=False,  # Greedy decoding
+                            pad_token_id=self.tokenizer.eos_token_id,
+                            eos_token_id=self.tokenizer.eos_token_id
+                        )
+                    else:
+                        raise e
             
             # Decode and return only the new tokens
             generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
