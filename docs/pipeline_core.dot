@@ -1,0 +1,86 @@
+digraph IPCCPipelineCore {
+    // Graph settings
+    rankdir=LR;
+    node [shape=box, style=filled, fontname="Arial", fontsize=12];
+    edge [fontname="Arial", fontsize=10];
+    
+    // Input
+    subgraph cluster_input {
+        label="Input";
+        style=filled;
+        color=lightblue;
+        
+        URL [label="IPCC Chapter URL\n(https://www.ipcc.ch/...)", shape=cylinder, fillcolor=lightcyan];
+        CONFIG [label="Pipeline Config\n(YAML)", shape=note, fillcolor=lightyellow];
+    }
+    
+    // Stage 1: Download
+    subgraph cluster_download {
+        label="Stage 1: Download";
+        style=filled;
+        color=lightcoral;
+        
+        SELENIUM [label="Selenium\nHeadless Browser", fillcolor=lightpink];
+        REQUESTS [label="Requests\n(Fallback)", fillcolor=lightpink];
+        RAW_HTML [label="Raw HTML\nContent", shape=cylinder, fillcolor=lightcyan];
+    }
+    
+    // Stage 2: Clean
+    subgraph cluster_clean {
+        label="Stage 2: Clean";
+        style=filled;
+        color=lightgoldenrod;
+        
+        EXTRACT [label="Content Extraction\n(Readability/Trafilatura)", fillcolor=lightyellow];
+        CLEAN_MARKUP [label="Remove Markup\n(Ads, Navigation, Gatsby, WordPress)", fillcolor=lightyellow];
+        CLEAN_HTML [label="Cleaned HTML\nContent", shape=cylinder, fillcolor=lightcyan];
+    }
+    
+    // Stage 3: Structure
+    subgraph cluster_structure {
+        label="Stage 3: Structure";
+        style=filled;
+        color=lightsteelblue;
+        
+        ID_GEN [label="ID Generation\n(semantic_hierarchical)", fillcolor=lightblue];
+        ADD_IDS [label="Add Paragraph IDs\n{section}_{subsection}_{paragraph}", fillcolor=lightblue];
+        FINAL_HTML [label="Final HTML\nwith Paragraph IDs", shape=cylinder, fillcolor=lightcyan];
+    }
+    
+    // Output
+    subgraph cluster_output {
+        label="Output";
+        style=filled;
+        color=lightgreen;
+        
+        HTML_OUT [label="HTML File\n(processed.html)", shape=note, fillcolor=lightyellow];
+        JSON_OUT [label="JSON File\n(metadata.json)", shape=note, fillcolor=lightyellow];
+        MD_OUT [label="Markdown File\n(content.md)", shape=note, fillcolor=lightyellow];
+    }
+    
+    // Connections
+    URL -> SELENIUM [label="download"];
+    URL -> REQUESTS [label="download"];
+    CONFIG -> SELENIUM [label="configure"];
+    CONFIG -> REQUESTS [label="configure"];
+    
+    SELENIUM -> RAW_HTML [label="HTML"];
+    REQUESTS -> RAW_HTML [label="HTML"];
+    
+    RAW_HTML -> EXTRACT [label="extract content"];
+    EXTRACT -> CLEAN_MARKUP [label="remove markup"];
+    CLEAN_MARKUP -> CLEAN_HTML [label="cleaned"];
+    
+    CLEAN_HTML -> ID_GEN [label="generate IDs"];
+    ID_GEN -> ADD_IDS [label="add IDs"];
+    ADD_IDS -> FINAL_HTML [label="structured"];
+    
+    FINAL_HTML -> HTML_OUT [label="export"];
+    FINAL_HTML -> JSON_OUT [label="export"];
+    FINAL_HTML -> MD_OUT [label="export"];
+    
+    // Stage dependencies
+    edge [style=dashed, color=gray, label="depends on"];
+    RAW_HTML -> CLEAN_HTML;
+    CLEAN_HTML -> FINAL_HTML;
+} 

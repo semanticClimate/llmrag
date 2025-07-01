@@ -1,0 +1,199 @@
+digraph IPCCPipeline {
+    // Graph settings
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // Color scheme
+    subgraph cluster_colors {
+        node [style=invis];
+        label="";
+    }
+    
+    // Input sources
+    subgraph cluster_inputs {
+        label="Input Sources";
+        style=filled;
+        color=lightblue;
+        
+        IPCC_URL [label="IPCC Chapter URLs\n(https://www.ipcc.ch/...)", shape=cylinder, fillcolor=lightcyan];
+        CONFIG_YAML [label="Pipeline Configuration\n(pipeline_config.yaml)", shape=note, fillcolor=lightyellow];
+    }
+    
+    // Pipeline stages
+    subgraph cluster_pipeline {
+        label="Pipeline Stages";
+        style=filled;
+        color=lightgreen;
+        
+        // Stage 1: Download
+        subgraph cluster_download {
+            label="1. Download Stage";
+            style=filled;
+            color=lightcoral;
+            
+            SELENIUM [label="Selenium Headless\nBrowser", fillcolor=lightpink];
+            REQUESTS [label="Requests Library\n(Fallback)", fillcolor=lightpink];
+            DOWNLOAD_OUT [label="Raw HTML Content", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 2: Clean
+        subgraph cluster_clean {
+            label="2. Clean Stage";
+            style=filled;
+            color=lightgoldenrod;
+            
+            READABILITY [label="Readability\nExtractor", fillcolor=lightyellow];
+            TRAFILATURA [label="Trafilatura\nExtractor", fillcolor=lightyellow];
+            CLEAN_ADS [label="Remove Ads\n& Navigation", fillcolor=lightyellow];
+            CLEAN_GATSBY [label="Clean Gatsby\nMarkup", fillcolor=lightyellow];
+            CLEAN_WP [label="Clean WordPress\nMarkup", fillcolor=lightyellow];
+            CLEAN_OUT [label="Cleaned HTML Content", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 3: Structure
+        subgraph cluster_structure {
+            label="3. Structure Stage";
+            style=filled;
+            color=lightsteelblue;
+            
+            ID_ALGO [label="ID Algorithm\n(semantic_hierarchical)", fillcolor=lightblue];
+            ADD_IDS [label="Add Paragraph IDs\n{section}_{subsection}_{paragraph}", fillcolor=lightblue];
+            PRESERVE_STRUCT [label="Preserve Headings\n& Lists", fillcolor=lightblue];
+            STRUCT_OUT [label="Structured HTML\nwith Paragraph IDs", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 4: Chunk (stub)
+        subgraph cluster_chunk {
+            label="4. Chunk Stage (Stub)";
+            style=filled;
+            color=lightgray;
+            
+            CHUNK_ALGO [label="Semantic Chunking\nAlgorithm", fillcolor=gainsboro];
+            CHUNK_OUT [label="RAG Chunks\nwith IDs", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 5: Dictionary (stub)
+        subgraph cluster_dict {
+            label="5. Dictionary Stage (Stub)";
+            style=filled;
+            color=lightgray;
+            
+            DICT_EXTRACT [label="Term Extraction\n(spaCy, KeyBERT)", fillcolor=gainsboro];
+            DICT_OUT [label="Chapter Dictionary", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 6: Encyclopedia (stub)
+        subgraph cluster_encyc {
+            label="6. Encyclopedia Stage (Stub)";
+            style=filled;
+            color=lightgray;
+            
+            WIKI_LOOKUP [label="Wikipedia\nLookup", fillcolor=gainsboro];
+            IMAGE_DOWNLOAD [label="Image Download", fillcolor=gainsboro];
+            ENC_OUT [label="Mini Encyclopedia", shape=cylinder, fillcolor=lightcyan];
+        }
+    }
+    
+    // Quality checks
+    subgraph cluster_quality {
+        label="Quality Checks";
+        style=filled;
+        color=lightcoral;
+        
+        QC_LENGTH [label="Content Length\nCheck", fillcolor=lightpink];
+        QC_PARAGRAPHS [label="Paragraph Count\nCheck", fillcolor=lightpink];
+        QC_TITLE [label="Title Match\nCheck", fillcolor=lightpink];
+        QC_IDS [label="ID Coverage\nCheck", fillcolor=lightpink];
+    }
+    
+    // Output formats
+    subgraph cluster_outputs {
+        label="Output Formats";
+        style=filled;
+        color=lightgreen;
+        
+        HTML_OUT [label="HTML Output\n(processed.html)", shape=note, fillcolor=lightyellow];
+        JSON_OUT [label="JSON Output\n(data.json)", shape=note, fillcolor=lightyellow];
+        MD_OUT [label="Markdown Output\n(content.md)", shape=note, fillcolor=lightyellow];
+        YAML_OUT [label="YAML Output\n(metadata.yaml)", shape=note, fillcolor=lightyellow];
+    }
+    
+    // Error handling
+    subgraph cluster_errors {
+        label="Error Handling";
+        style=filled;
+        color=lightcoral;
+        
+        LOG_ERRORS [label="Log Errors", fillcolor=lightpink];
+        RETRY_FAILED [label="Retry Failed\nOperations", fillcolor=lightpink];
+        CONTINUE_ON_ERROR [label="Continue on\nError", fillcolor=lightpink];
+    }
+    
+    // Connections from inputs
+    IPCC_URL -> SELENIUM [label="URL"];
+    IPCC_URL -> REQUESTS [label="URL"];
+    CONFIG_YAML -> SELENIUM [label="config"];
+    CONFIG_YAML -> REQUESTS [label="config"];
+    
+    // Download stage connections
+    SELENIUM -> DOWNLOAD_OUT [label="HTML"];
+    REQUESTS -> DOWNLOAD_OUT [label="HTML"];
+    
+    // Clean stage connections
+    DOWNLOAD_OUT -> READABILITY [label="raw HTML"];
+    DOWNLOAD_OUT -> TRAFILATURA [label="raw HTML"];
+    READABILITY -> CLEAN_ADS [label="extracted"];
+    TRAFILATURA -> CLEAN_ADS [label="extracted"];
+    CLEAN_ADS -> CLEAN_GATSBY [label="cleaned"];
+    CLEAN_GATSBY -> CLEAN_WP [label="cleaned"];
+    CLEAN_WP -> CLEAN_OUT [label="cleaned"];
+    
+    // Structure stage connections
+    CLEAN_OUT -> ID_ALGO [label="cleaned HTML"];
+    ID_ALGO -> ADD_IDS [label="algorithm"];
+    ADD_IDS -> PRESERVE_STRUCT [label="with IDs"];
+    PRESERVE_STRUCT -> STRUCT_OUT [label="structured"];
+    
+    // Chunk stage connections
+    STRUCT_OUT -> CHUNK_ALGO [label="structured HTML"];
+    CHUNK_ALGO -> CHUNK_OUT [label="chunks"];
+    
+    // Dictionary stage connections
+    STRUCT_OUT -> DICT_EXTRACT [label="structured HTML"];
+    DICT_EXTRACT -> DICT_OUT [label="terms"];
+    
+    // Encyclopedia stage connections
+    DICT_OUT -> WIKI_LOOKUP [label="terms"];
+    WIKI_LOOKUP -> IMAGE_DOWNLOAD [label="definitions"];
+    IMAGE_DOWNLOAD -> ENC_OUT [label="with images"];
+    
+    // Quality check connections
+    STRUCT_OUT -> QC_LENGTH [label="check"];
+    STRUCT_OUT -> QC_PARAGRAPHS [label="check"];
+    STRUCT_OUT -> QC_TITLE [label="check"];
+    STRUCT_OUT -> QC_IDS [label="check"];
+    
+    // Output connections
+    STRUCT_OUT -> HTML_OUT [label="export"];
+    CHUNK_OUT -> JSON_OUT [label="export"];
+    DICT_OUT -> JSON_OUT [label="export"];
+    ENC_OUT -> JSON_OUT [label="export"];
+    STRUCT_OUT -> MD_OUT [label="export"];
+    STRUCT_OUT -> YAML_OUT [label="export"];
+    
+    // Error handling connections
+    SELENIUM -> LOG_ERRORS [label="on error"];
+    READABILITY -> LOG_ERRORS [label="on error"];
+    ID_ALGO -> LOG_ERRORS [label="on error"];
+    LOG_ERRORS -> RETRY_FAILED [label="retry"];
+    RETRY_FAILED -> CONTINUE_ON_ERROR [label="continue"];
+    
+    // Stage dependencies
+    edge [style=dashed, color=gray];
+    DOWNLOAD_OUT -> CLEAN_OUT [label="depends on"];
+    CLEAN_OUT -> STRUCT_OUT [label="depends on"];
+    STRUCT_OUT -> CHUNK_OUT [label="depends on"];
+    STRUCT_OUT -> DICT_OUT [label="depends on"];
+    DICT_OUT -> ENC_OUT [label="depends on"];
+} 

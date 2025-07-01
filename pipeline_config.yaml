@@ -1,0 +1,115 @@
+# IPCC Chapter Processing Pipeline Configuration
+# This defines the complete pipeline for downloading, cleaning, and enriching IPCC chapters
+
+pipeline:
+  name: "IPCC Chapter Processor"
+  version: "1.0"
+  description: "Automated pipeline for processing IPCC chapters with semantic enrichment"
+
+# Input sources
+sources:
+  - name: "wg1_chapter02"
+    url: "https://www.ipcc.ch/report/ar6/wg1/chapter/chapter-2/"
+    working_group: "wg1"
+    chapter: "chapter02"
+    expected_title: "Changing State of the Climate System"
+    
+  - name: "wg1_chapter04"
+    url: "https://www.ipcc.ch/report/ar6/wg1/chapter/chapter-4/"
+    working_group: "wg1"
+    chapter: "chapter04"
+    expected_title: "Future Global Climate: Scenario-based Projections and Near-term Information"
+
+# Processing stages
+stages:
+  download:
+    enabled: true
+    method: "selenium_headless"
+    browser: "chrome"
+    wait_time: 5
+    retry_attempts: 3
+    output_dir: "downloads"
+    
+  clean:
+    enabled: true
+    extractors:
+      - "readability"  # Main content extraction
+      - "trafilatura"  # Alternative extraction
+    cleaners:
+      - "remove_ads"
+      - "remove_navigation"
+      - "remove_footers"
+      - "clean_gatsby_markup"
+      - "clean_wordpress_markup"
+    output_dir: "cleaned"
+    
+  structure:
+    enabled: true
+    add_paragraph_ids: true
+    id_algorithm: "semantic_hierarchical"
+    id_format: "{section}_{subsection}_{paragraph}"
+    preserve_headings: true
+    preserve_lists: true
+    output_dir: "structured"
+    
+  chunk:
+    enabled: true
+    method: "semantic"
+    chunk_size: 500
+    overlap: 50
+    preserve_ids: true
+    output_dir: "chunks"
+    
+  dictionary:
+    enabled: true
+    extractors:
+      - "spacy_entities"  # Named entities
+      - "keybert_keywords"  # Keyword extraction
+      - "climate_terms"  # Domain-specific terms
+    min_frequency: 3
+    max_terms: 100
+    output_dir: "dictionaries"
+    
+  encyclopedia:
+    enabled: true
+    wikipedia_lookup: true
+    image_download: true
+    max_images: 5
+    image_size: "medium"
+    output_dir: "encyclopedia"
+
+# Output formats
+outputs:
+  - format: "html"
+    filename: "{wg}_{chapter}_processed.html"
+    
+  - format: "json"
+    filename: "{wg}_{chapter}_data.json"
+    
+  - format: "markdown"
+    filename: "{wg}_{chapter}_content.md"
+    
+  - format: "yaml"
+    filename: "{wg}_{chapter}_metadata.yaml"
+
+# Quality checks
+quality_checks:
+  - name: "content_length"
+    min_length: 1000
+    max_length: 100000
+    
+  - name: "paragraph_count"
+    min_paragraphs: 10
+    
+  - name: "title_match"
+    expected_keywords: ["climate", "temperature", "warming", "emissions"]
+    
+  - name: "id_coverage"
+    min_id_coverage: 0.8
+
+# Error handling
+error_handling:
+  continue_on_error: true
+  log_errors: true
+  retry_failed: true
+  max_retries: 3 

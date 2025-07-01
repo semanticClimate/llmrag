@@ -1,0 +1,109 @@
+digraph LLMRAG_Architecture {
+    // Graph settings
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // Subgraphs for different layers
+    subgraph cluster_input {
+        label="Input Layer";
+        style=filled;
+        color=lightblue;
+        
+        HTML_Files [label="IPCC HTML Files\n(tests/ipcc/)", shape=folder, fillcolor=lightcyan];
+        User_Query [label="User Questions\n(CLI/Web)", shape=note, fillcolor=lightyellow];
+    }
+    
+    subgraph cluster_processing {
+        label="Processing Layer";
+        style=filled;
+        color=lightgreen;
+        
+        HTML_Splitter [label="HTML Text Splitter\n(html_splitter.py)", fillcolor=lightgreen];
+        Embedder [label="Sentence Transformers\nEmbedder", fillcolor=lightgreen];
+        Vector_Store [label="ChromaDB\nVector Store", fillcolor=lightgreen];
+    }
+    
+    subgraph cluster_ai {
+        label="AI Layer";
+        style=filled;
+        color=lightcoral;
+        
+        RAG_Pipeline [label="RAG Pipeline\n(rag_pipeline.py)", fillcolor=lightcoral];
+        Language_Model [label="HuggingFace\nTransformers Model", fillcolor=lightcoral];
+    }
+    
+    subgraph cluster_interface {
+        label="Interface Layer";
+        style=filled;
+        color=lightpink;
+        
+        CLI [label="Command Line\nInterface (cli.py)", fillcolor=lightpink];
+        Streamlit [label="Web Interface\n(streamlit_app.py)", fillcolor=lightpink];
+        Chapter_Manager [label="Chapter Manager\n(chapter_rag.py)", fillcolor=lightpink];
+    }
+    
+    subgraph cluster_output {
+        label="Output Layer";
+        style=filled;
+        color=lightgoldenrod;
+        
+        Answer [label="Generated Answer\nwith Sources", shape=note, fillcolor=lightyellow];
+        Chat_History [label="Chat History\n(Session State)", shape=cylinder, fillcolor=lightgoldenrod];
+        Export [label="JSON Export\n(Chat History)", shape=note, fillcolor=lightyellow];
+    }
+    
+    // Data flow connections
+    HTML_Files -> HTML_Splitter [label="HTML Content"];
+    HTML_Splitter -> Embedder [label="Text Chunks\n+ Metadata"];
+    Embedder -> Vector_Store [label="Vector Embeddings\n+ Paragraph IDs"];
+    
+    User_Query -> CLI [label="Command Line"];
+    User_Query -> Streamlit [label="Web Interface"];
+    
+    CLI -> Chapter_Manager [label="Chapter Selection"];
+    Streamlit -> Chapter_Manager [label="Chapter Selection"];
+    Chapter_Manager -> RAG_Pipeline [label="Load Chapter"];
+    
+    Vector_Store -> RAG_Pipeline [label="Similarity Search"];
+    RAG_Pipeline -> Language_Model [label="Context + Question"];
+    Language_Model -> RAG_Pipeline [label="Generated Answer"];
+    RAG_Pipeline -> Answer [label="Answer + Sources"];
+    
+    Answer -> Chat_History [label="Store"];
+    Chat_History -> Export [label="Download"];
+    
+    // Title extraction flow
+    HTML_Files -> Chapter_Manager [label="Extract Titles", style=dashed, color=blue];
+    
+    // User management
+    subgraph cluster_users {
+        label="User Management";
+        style=filled;
+        color=lightgray;
+        
+        User_Sandbox [label="User Sandboxes\n(Isolated Collections)", shape=cylinder, fillcolor=lightgray];
+    }
+    
+    Chapter_Manager -> User_Sandbox [label="Create/Manage"];
+    User_Sandbox -> Vector_Store [label="User-Specific\nCollections"];
+    
+    // Metadata flow
+    HTML_Splitter -> Vector_Store [label="Paragraph IDs\nElement Types\nChunk Index", style=dashed, color=red];
+    
+    // Key features annotations
+    subgraph cluster_features {
+        label="Key Features";
+        style=filled;
+        color=lightsteelblue;
+        
+        Multi_User [label="Multi-User Support\n(Isolated Sandboxes)", fillcolor=lightsteelblue];
+        Source_Tracking [label="Source Tracking\n(Paragraph IDs)", fillcolor=lightsteelblue];
+        Title_Extraction [label="Title Extraction\n(HTML Parsing)", fillcolor=lightsteelblue];
+        Real_Models [label="Real AI Models\n(HuggingFace)", fillcolor=lightsteelblue];
+    }
+    
+    // Styling
+    edge [color=black];
+    node [margin=0.2];
+} 

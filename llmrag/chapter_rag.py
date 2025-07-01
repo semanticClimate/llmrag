@@ -51,7 +51,7 @@ class ChapterRAG:
     They can all access the same books, but they have their own workspace and notes.
     """
     
-    def __init__(self, base_path: str = "tests/ipcc", model_name: str = "gpt2", device: str = "cpu"):
+    def __init__(self, base_path: str = "tests/ipcc", model_name: str = "gpt2-large", device: str = "auto"):
         """
         Initialize the Chapter RAG system.
         
@@ -59,15 +59,29 @@ class ChapterRAG:
         This is the constructor - it sets up the basic configuration when we create
         a new ChapterRAG object. Think of it like setting up a new research workspace.
         
+        We now use gpt2-large by default (774M parameters) which provides much better
+        answer quality while still being manageable on CPU with sufficient RAM.
+        
         Args:
             base_path: Path to IPCC chapters directory (where the documents are stored)
             model_name: HuggingFace model name (which AI model to use for generating answers)
-            device: Device to run model on ("cpu" or "cuda" for GPU)
+            device: Device to run model on ("auto", "cpu", "mps", or "cuda")
         """
         self.base_path = Path(base_path)  # Convert to Path object for easier file operations
         self.pipelines: Dict[str, RAGPipeline] = {}  # Store RAG pipelines for each user+chapter combination
         self.model_name = model_name
-        self.device = device
+        
+        # Auto-detect best device
+        if device == "auto":
+            import torch
+            if torch.backends.mps.is_available():
+                self.device = "mps"  # Apple Silicon GPU
+            elif torch.cuda.is_available():
+                self.device = "cuda"  # NVIDIA GPU
+            else:
+                self.device = "cpu"  # CPU fallback
+        else:
+            self.device = device
         
     def _extract_chapter_title(self, html_file_path: Path) -> str:
         """
@@ -151,11 +165,24 @@ class ChapterRAG:
             raise FileNotFoundError(f"Chapter not found: {chapter_name}")
         
         # Find HTML file in the chapter directory
+        # Prioritize html_with_ids.html as it contains semantic paragraph IDs
         html_files = list(chapter_path.glob("*.html"))
         if not html_files:
             raise FileNotFoundError(f"No HTML files in {chapter_name}")
         
-        html_file = html_files[0]
+        # Look for html_with_ids.html first, then fall back to other files
+        html_file = None
+        for file in html_files:
+            if file.name == "html_with_ids.html":
+                html_file = file
+                break
+        
+        if html_file is None:
+            # Fall back to first available HTML file
+            html_file = html_files[0]
+            print(f"⚠️  Warning: Using {html_file.name} instead of html_with_ids.html")
+        else:
+            print(f"✅ Using html_with_ids.html with semantic paragraph IDs")
         
         # Create user-specific collection name
         # This ensures each user gets their own isolated space
@@ -272,7 +299,7 @@ class ChapterRAG:
 # Convenience functions for Jupyter notebooks
 # These are helper functions that make it easier to use the system in notebooks
 
-def load_chapter(chapter_name: str, user_id: str = "default", model_name: str = "gpt2", device: str = "cpu") -> ChapterRAG:
+def load_chapter(chapter_name: str, user_id: str = "default", model_name: str = "gpt2-large", device: str = "auto") -> ChapterRAG:
     """
     Load a chapter and return a ChapterRAG instance.
     
@@ -295,7 +322,7 @@ def load_chapter(chapter_name: str, user_id: str = "default", model_name: str = 
     return rag
 
 
-def ask_chapter(question: str, chapter_name: str, user_id: str = "default", model_name: str = "gpt2", device: str = "cpu") -> Dict:
+def ask_chapter(question: str, chapter_name: str, user_id: str = "default", model_name: str = "gpt2-large", device: str = "auto") -> Dict:
     """
     Quick function to ask a question about a chapter.
     

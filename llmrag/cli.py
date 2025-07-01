@@ -82,8 +82,10 @@ Examples:
     load_parser.add_argument('chapter', help='Chapter name (e.g., wg1/chapter04)')
     load_parser.add_argument('--user-id', default='default', help='User identifier')
     load_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
-    load_parser.add_argument('--model-name', default='gpt2', help='HuggingFace model name')
-    load_parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], help='Device to run model on')
+    load_parser.add_argument('--model-name', default='gpt2-large', 
+                           help='HuggingFace model name (default: gpt2-large)')
+    load_parser.add_argument('--device', default='auto', 
+                           help='Device to run model on (auto, cpu, mps, cuda) (default: auto)')
     
     # Command 3: Ask questions
     ask_parser = subparsers.add_parser('ask', help='Ask a question about a chapter')
@@ -91,8 +93,10 @@ Examples:
     ask_parser.add_argument('--chapter', required=True, help='Chapter name (e.g., wg1/chapter04)')
     ask_parser.add_argument('--user-id', default='default', help='User identifier')
     ask_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
-    ask_parser.add_argument('--model-name', default='gpt2', help='HuggingFace model name')
-    ask_parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], help='Device to run model on')
+    ask_parser.add_argument('--model-name', default='gpt2-large', 
+                           help='HuggingFace model name (default: gpt2-large)')
+    ask_parser.add_argument('--device', default='auto', 
+                           help='Device to run model on (auto, cpu, mps, cuda) (default: auto)')
     ask_parser.add_argument('--output-format', choices=['text', 'json'], default='text', help='Output format')
     
     # Command 4: Interactive mode
@@ -100,7 +104,9 @@ Examples:
     interactive_parser.add_argument('--chapter', required=True, help='Chapter name (e.g., wg1/chapter04)')
     interactive_parser.add_argument('--user-id', default='default', help='User identifier')
     interactive_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
-    interactive_parser.add_argument('--model-name', default='gpt2', help='HuggingFace model name')
+    interactive_parser.add_argument('--model-name', default='gpt2-large',
+                                   choices=['gpt2', 'gpt2-medium', 'gpt2-large', 'distilgpt2', 'microsoft/DialoGPT-medium'],
+                                   help='HuggingFace model name (gpt2-large recommended for better quality)')
     interactive_parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], help='Device to run model on')
     
     return parser
@@ -197,8 +203,16 @@ def ask_command(question: str, chapter: str, user_id: str, base_path: str, model
         
         # Format the output based on user preference
         if output_format == 'json':
-            # JSON format is useful for programmatic access
-            print(json.dumps(result, indent=2))
+            # Convert Document objects to serializable format
+            result_copy = result.copy()
+            if 'context' in result_copy:
+                result_copy['context'] = [
+                    {
+                        'page_content': doc.page_content,
+                        'metadata': doc.metadata
+                    } for doc in result_copy['context']
+                ]
+            print(json.dumps(result_copy, indent=2))
         else:
             # Text format is more human-readable
             print(f"\n🤔 Question: {question}")

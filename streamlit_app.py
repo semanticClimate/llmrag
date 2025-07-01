@@ -57,7 +57,7 @@ def init_session_state():
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     if 'model_name' not in st.session_state:
-        st.session_state.model_name = "gpt2"
+        st.session_state.model_name = "gpt2-large"
     if 'device' not in st.session_state:
         st.session_state.device = "cpu"
 
@@ -134,19 +134,19 @@ def load_chapter_interface():
     with col1:
         # Model selection dropdown
         model_name = st.selectbox(
-            "Model:",
-            ["gpt2", "gpt2-medium", "gpt2-large", "distilgpt2", "microsoft/DialoGPT-medium"],
+            "Model", 
+            ["gpt2-large", "gpt2-medium", "gpt2", "distilgpt2"], 
             index=0,
-            help="Choose a HuggingFace model"
+            help="Select the language model to use for generating answers"
         )
     
     with col2:
         # Device selection dropdown
         device = st.selectbox(
-            "Device:",
-            ["cpu", "cuda"],
+            "Device", 
+            ["auto", "cpu", "mps", "cuda"], 
             index=0,
-            help="Choose device to run the model on"
+            help="Select the device to run the model on (auto = best available)"
         )
     
     # Load button

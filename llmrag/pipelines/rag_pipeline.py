@@ -23,13 +23,27 @@ class RAGPipeline:
         self.model = model
         self.vector_store = vector_store
 
-    def query(self, question: str, top_k=4, temperature=0.3) -> str:
-        docs = self.vector_store.retrieve(question, top_k=top_k)
+    def run(self, query: str, top_k=4, temperature=0.3) -> dict:
+        """
+        Runs the RAG pipeline: retrieves documents and generates an answer.
+
+        Args:
+            query: The user query.
+            top_k: Number of documents to retrieve
+            temperature: Temperature for generation
+
+        Returns:
+            dict: A dictionary containing:
+                - answer: The generated answer string
+                - context: List of retrieved documents
+                - paragraph_ids: List of unique paragraph IDs from the context documents
+        """
+        documents = self.vector_store.retrieve(query, top_k=top_k)
 
         # Deduplicate context to reduce redundancy
         seen = set()
         unique_docs = []
-        for doc in docs:
+        for doc in documents:
             if doc.page_content not in seen:
                 seen.add(doc.page_content)
                 unique_docs.append(doc)
@@ -43,30 +57,14 @@ class RAGPipeline:
     Context:
     {context}
 
-    Question: {question}
+    Question: {query}
     Answer:"""
 
-        return self.model.generate(prompt, temperature=temperature)
-
-    def run(self, query: str) -> dict:
-        """
-        Runs the RAG pipeline: retrieves documents and generates an answer.
-
-        Args:
-            query: The user query.
-
-        Returns:
-            dict: A dictionary containing:
-                - answer: The generated answer string
-                - context: List of retrieved documents
-                - paragraph_ids: List of unique paragraph IDs from the context documents
-        """
-        documents = self.vector_store.retrieve(query)
-        answer = self.model.generate(query, documents=documents)
+        answer = self.model.generate(prompt, temperature=temperature)
         
         # Extract paragraph IDs from the retrieved documents
         paragraph_ids = []
-        for doc in documents:
+        for doc in unique_docs:
             if hasattr(doc, 'metadata') and doc.metadata:
                 if 'paragraph_ids' in doc.metadata and doc.metadata['paragraph_ids']:
                     # Split comma-separated string back into list
@@ -78,7 +76,14 @@ class RAGPipeline:
         
         return {
             "answer": answer,
-            "context": documents,
+            "context": unique_docs,
             "paragraph_ids": unique_paragraph_ids
         }
+
+    def query(self, question: str, top_k=4, temperature=0.3) -> str:
+        """
+        Legacy method - use run() instead for full results with paragraph IDs.
+        """
+        result = self.run(question, top_k=top_k, temperature=temperature)
+        return result["answer"]
 

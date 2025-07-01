@@ -1,0 +1,118 @@
+digraph Component_Interaction {
+    // Graph settings
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // Main components
+    subgraph cluster_core {
+        label="Core RAG Components";
+        style=filled;
+        color=lightblue;
+        
+        ChapterRAG [label="ChapterRAG\n(chapter_rag.py)", fillcolor=lightblue];
+        RAGPipeline [label="RAGPipeline\n(rag_pipeline.py)", fillcolor=lightblue];
+        HTMLSplitter [label="HtmlTextSplitter\n(html_splitter.py)", fillcolor=lightblue];
+        Embedder [label="SentenceTransformersEmbedder\n(embeddings/)", fillcolor=lightblue];
+        VectorStore [label="ChromaVectorStore\n(retrievers/)", fillcolor=lightblue];
+        LanguageModel [label="TransformersModel\n(models/)", fillcolor=lightblue];
+    }
+    
+    subgraph cluster_interface {
+        label="User Interfaces";
+        style=filled;
+        color=lightgreen;
+        
+        CLI [label="CLI\n(cli.py)", fillcolor=lightgreen];
+        Streamlit [label="Streamlit App\n(streamlit_app.py)", fillcolor=lightgreen];
+    }
+    
+    subgraph cluster_ingestion {
+        label="Ingestion";
+        style=filled;
+        color=lightyellow;
+        
+        IngestHTML [label="ingest_html_file\n(ingestion/)", fillcolor=lightyellow];
+    }
+    
+    subgraph cluster_data {
+        label="Data & Storage";
+        style=filled;
+        color=lightcoral;
+        
+        ChromaDB [label="ChromaDB\n(Database)", fillcolor=lightcoral];
+        SessionState [label="Session State\n(Streamlit)", fillcolor=lightcoral];
+    }
+    
+    // Component interactions
+    // Interface -> Core
+    CLI -> ChapterRAG [label="1. Load Chapter\n2. Ask Questions"];
+    Streamlit -> ChapterRAG [label="1. Load Chapter\n2. Ask Questions"];
+    
+    // Core component interactions
+    ChapterRAG -> IngestHTML [label="Process HTML Files"];
+    ChapterRAG -> RAGPipeline [label="Create Pipeline"];
+    
+    IngestHTML -> HTMLSplitter [label="Split HTML"];
+    IngestHTML -> Embedder [label="Create Embeddings"];
+    IngestHTML -> VectorStore [label="Store Vectors"];
+    
+    RAGPipeline -> VectorStore [label="Retrieve Context"];
+    RAGPipeline -> LanguageModel [label="Generate Answer"];
+    
+    // Data storage
+    VectorStore -> ChromaDB [label="Store/Query"];
+    Streamlit -> SessionState [label="Persist State"];
+    
+    // Method calls (detailed)
+    subgraph cluster_methods {
+        label="Key Method Calls";
+        style=filled;
+        color=lightsteelblue;
+        
+        LoadChapter [label="load_chapter()\n- Find HTML file\n- Extract title\n- Create pipeline", fillcolor=lightsteelblue];
+        AskQuestion [label="ask()\n- Load if needed\n- Run pipeline\n- Return result", fillcolor=lightsteelblue];
+        SplitHTML [label="split()\n- Parse HTML\n- Extract text\n- Create chunks", fillcolor=lightsteelblue];
+        RunPipeline [label="run()\n- Retrieve context\n- Generate answer\n- Add metadata", fillcolor=lightsteelblue];
+    }
+    
+    ChapterRAG -> LoadChapter [label="Calls", style=dashed];
+    ChapterRAG -> AskQuestion [label="Calls", style=dashed];
+    HTMLSplitter -> SplitHTML [label="Calls", style=dashed];
+    RAGPipeline -> RunPipeline [label="Calls", style=dashed];
+    
+    // Data flow
+    subgraph cluster_dataflow {
+        label="Data Flow";
+        style=filled;
+        color=lightpink;
+        
+        HTML_Input [label="HTML Files\nwith paragraph IDs", fillcolor=lightpink];
+        Text_Chunks [label="Text Chunks\n+ Metadata", fillcolor=lightpink];
+        Vector_Embeddings [label="Vector Embeddings\n+ Paragraph IDs", fillcolor=lightpink];
+        Retrieved_Context [label="Retrieved Context\n+ Source Info", fillcolor=lightpink];
+        Generated_Answer [label="Generated Answer\n+ Sources", fillcolor=lightpink];
+    }
+    
+    HTML_Input -> Text_Chunks [label="HTML Processing"];
+    Text_Chunks -> Vector_Embeddings [label="Embedding"];
+    Vector_Embeddings -> Retrieved_Context [label="Similarity Search"];
+    Retrieved_Context -> Generated_Answer [label="RAG Generation"];
+    
+    // User management
+    subgraph cluster_users {
+        label="User Management";
+        style=filled;
+        color=lightgray;
+        
+        User_Isolation [label="User Isolation\n- Separate collections\n- Isolated pipelines\n- Individual chat history", fillcolor=lightgray];
+    }
+    
+    ChapterRAG -> User_Isolation [label="Manages"];
+    CLI -> User_Isolation [label="--user-id"];
+    Streamlit -> User_Isolation [label="Session State"];
+    
+    // Styling
+    edge [color=black];
+    node [margin=0.2];
+} 
