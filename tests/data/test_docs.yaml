@@ -1,5 +1,5 @@
 llm:
-  model_name: "gpt2"
+  model_name: "fake_llm"  # Use fake model for reliable testing
   device: "cpu"
 
 embedding:

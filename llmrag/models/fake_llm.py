@@ -1,12 +1,24 @@
+from langchain_core.documents import Document
+
 class FakeLLM:
+    """
+    A fake LLM for testing purposes that returns mock responses.
+    """
 
     def __init__(self):
         pass
 
-    def generate(self, query: str, documents: list) -> dict:
-        context = [doc.page_content for doc in documents]
-        answer = f"[FAKE ANSWER] This is a dummy answer to: '{query}'"
-        return {
-            "answer": answer,
-            "context": context
-        }
+    def generate(self, prompt_or_query: str, temperature: float = 0.3, documents: list[Document] = None) -> str:
+        """
+        Generate a fake response for testing.
+        
+        Args:
+            prompt_or_query (str): The prompt or query
+            temperature (float): Temperature parameter (ignored in fake model)
+            documents (list[Document], optional): Context documents (ignored in fake model)
+            
+        Returns:
+            str: A mock response
+        """
+        # Simple fake model for testing
+        return f"Mock answer to: {prompt_or_query.split('Question:')[-1].strip() if 'Question:' in prompt_or_query else prompt_or_query}"

@@ -1,0 +1,109 @@
+digraph Information_Flow {
+    // Graph settings
+    rankdir=LR;
+    node [shape=box, style=filled, fontname="Arial", fontsize=9];
+    edge [fontname="Arial", fontsize=8];
+    
+    // Process steps
+    subgraph cluster_ingestion {
+        label="1. Document Ingestion";
+        style=filled;
+        color=lightblue;
+        
+        HTML_File [label="IPCC HTML File\nwith paragraph IDs", shape=folder, fillcolor=lightcyan];
+        Parse_HTML [label="Parse HTML\n(lxml)", fillcolor=lightblue];
+        Extract_Text [label="Extract Text\nfrom h1-h6, p tags", fillcolor=lightblue];
+        Create_Chunks [label="Create Chunks\nwith metadata", fillcolor=lightblue];
+    }
+    
+    subgraph cluster_embedding {
+        label="2. Vector Embedding";
+        style=filled;
+        color=lightgreen;
+        
+        Text_Chunks [label="Text Chunks\n+ Paragraph IDs", fillcolor=lightgreen];
+        Sentence_Transformers [label="Sentence Transformers\n(all-MiniLM-L6-v2)", fillcolor=lightgreen];
+        Vector_Embeddings [label="Vector Embeddings\n(384 dimensions)", fillcolor=lightgreen];
+    }
+    
+    subgraph cluster_storage {
+        label="3. Vector Storage";
+        style=filled;
+        color=lightyellow;
+        
+        ChromaDB [label="ChromaDB\nVector Database", fillcolor=lightyellow];
+        User_Collection [label="User-Specific\nCollection", fillcolor=lightyellow];
+        Metadata_Store [label="Store Metadata\n(paragraph IDs, types)", fillcolor=lightyellow];
+    }
+    
+    subgraph cluster_query {
+        label="4. Query Processing";
+        style=filled;
+        color=lightcoral;
+        
+        User_Question [label="User Question", shape=note, fillcolor=lightcoral];
+        Question_Embedding [label="Question Embedding", fillcolor=lightcoral];
+        Similarity_Search [label="Similarity Search\n(Top-k chunks)", fillcolor=lightcoral];
+        Retrieved_Context [label="Retrieved Context\n+ Source IDs", fillcolor=lightcoral];
+    }
+    
+    subgraph cluster_generation {
+        label="5. Answer Generation";
+        style=filled;
+        color=lightpink;
+        
+        RAG_Prompt [label="RAG Prompt\n(Context + Question)", fillcolor=lightpink];
+        Language_Model [label="HuggingFace Model\n(GPT-2, etc.)", fillcolor=lightpink];
+        Generated_Answer [label="Generated Answer", fillcolor=lightpink];
+        Source_Info [label="Source Information\n(Paragraph IDs)", fillcolor=lightpink];
+    }
+    
+    subgraph cluster_output {
+        label="6. Response Delivery";
+        style=filled;
+        color=lightgoldenrod;
+        
+        Final_Answer [label="Final Answer\nwith Sources", shape=note, fillcolor=lightgoldenrod];
+        Chat_History [label="Store in\nChat History", fillcolor=lightgoldenrod];
+        Export_Data [label="Export to JSON\n(Optional)", fillcolor=lightgoldenrod];
+    }
+    
+    // Flow connections
+    HTML_File -> Parse_HTML [label="HTML Content"];
+    Parse_HTML -> Extract_Text [label="DOM Tree"];
+    Extract_Text -> Create_Chunks [label="Text Elements"];
+    Create_Chunks -> Text_Chunks [label="Chunked Text"];
+    
+    Text_Chunks -> Sentence_Transformers [label="Text Input"];
+    Sentence_Transformers -> Vector_Embeddings [label="Embeddings"];
+    Vector_Embeddings -> ChromaDB [label="Store Vectors"];
+    ChromaDB -> User_Collection [label="User Isolation"];
+    User_Collection -> Metadata_Store [label="Store Metadata"];
+    
+    User_Question -> Question_Embedding [label="Embed Question"];
+    Question_Embedding -> Similarity_Search [label="Search Vectors"];
+    Similarity_Search -> Retrieved_Context [label="Top-k Results"];
+    Retrieved_Context -> RAG_Prompt [label="Context + Question"];
+    
+    RAG_Prompt -> Language_Model [label="Generate Answer"];
+    Language_Model -> Generated_Answer [label="AI Response"];
+    Generated_Answer -> Source_Info [label="Add Sources"];
+    Source_Info -> Final_Answer [label="Complete Response"];
+    
+    Final_Answer -> Chat_History [label="Persist"];
+    Chat_History -> Export_Data [label="Download"];
+    
+    // Title extraction flow
+    HTML_File -> Title_Extraction [label="Extract Title", style=dashed, color=blue];
+    Title_Extraction [label="Title Extraction\n(<title>, <h1>, <h2>)", fillcolor=lightsteelblue];
+    Title_Extraction -> Chapter_Selection [label="Display Titles", style=dashed, color=blue];
+    Chapter_Selection [label="Chapter Selection\n(CLI/Web)", fillcolor=lightsteelblue];
+    
+    // User management flow
+    User_Management [label="User Management\n(Sandbox Creation)", fillcolor=lightgray];
+    User_Management -> User_Collection [label="Create Collection", style=dashed, color=gray];
+    
+    // Styling
+    edge [color=black];
+    node [margin=0.15];
+} 
