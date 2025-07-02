@@ -1,13 +1,22 @@
 # Virtual environments
 venv/
+venv_py312/
 .venv/
 env/
 .env/
 
-# ChromaDB files (vector store data)
+# ChromaDB files (vector store data) - exclude all database files by default
 chroma_db/
 *.db
 *.sqlite3
+*.bin
+*.index
+*.faiss
+*.pkl
+*.pickle
+
+# Only include production-ready databases when explicitly needed
+# !chroma_db/production/
 
 # Python cache
 __pycache__/
