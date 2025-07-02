@@ -1,3 +1,4 @@
+from typing import List
 from langchain_core.documents import Document
 
 class FakeLLM:
@@ -8,14 +9,14 @@ class FakeLLM:
     def __init__(self):
         pass
 
-    def generate(self, prompt_or_query: str, temperature: float = 0.3, documents: list[Document] = None) -> str:
+    def generate(self, prompt_or_query: str, temperature: float = 0.3, documents: List[Document] = None) -> str:
         """
         Generate a fake response for testing.
         
         Args:
             prompt_or_query (str): The prompt or query
             temperature (float): Temperature parameter (ignored in fake model)
-            documents (list[Document], optional): Context documents (ignored in fake model)
+            documents (List[Document], optional): Context documents (ignored in fake model)
             
         Returns:
             str: A mock response

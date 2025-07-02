@@ -1,5 +1,5 @@
 from typing import List
-from langchain.schema import Document
+from langchain_core.documents import Document
 from llmrag.embeddings.base_embedder import BaseEmbedder
 from sentence_transformers import SentenceTransformer
 
@@ -12,28 +12,28 @@ sentence_transformer
         device (str): Device to use ('cpu' or 'cuda').
 
     Methods:
-        embed(texts: list[str]) -> list[list[float]]:
+        embed(texts: List[str]) -> List[List[float]]:
             Embed a batch of texts.
-        embed_query(query: str) -> list[float]:
+        embed_query(query: str) -> List[float]:
             Embed a single query.
-        embed_documents(texts: list[str]) -> list[list[float]]:
+        embed_documents(texts: List[str]) -> List[List[float]]:
             Embed multiple documents.
     """
 
     def __init__(self, model_name="all-MiniLM-L6-v2", device="cpu"):
         self.model = SentenceTransformer(model_name, device=device)
 
-    def embed(self, texts):
+    def embed(self, texts: List[str]) -> List[List[float]]:
         """
         Embed a batch of texts.
 
         Args:
-            texts (list[str]): The texts to embed.
+            texts (List[str]): The texts to embed.
 
         Returns:
-            list[list[float]]: Embeddings for each text.
+            List[List[float]]: Embeddings for each text.
         """
-        if isinstance(texts[0], Document):
+        if texts and isinstance(texts[0], Document):
             texts = [doc.page_content for doc in texts]
 
         return self.model.encode(texts).tolist()
@@ -45,18 +45,18 @@ sentence_transformer
             query (str): The query to embed.
 
         Returns:
-            list[float]: The embedding vector.
+            List[float]: The embedding vector.
         """
         return self.model.encode(query, convert_to_numpy=True).tolist()
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
         Embed multiple documents.
 
         Args:
-            texts (list[str]): The documents to embed.
+            texts (List[str]): The documents to embed.
 
         Returns:
-            list[list[float]]: List of embedding vectors.
+            List[List[float]]: List of embedding vectors.
         """
         return self.model.encode(texts, convert_to_tensor=False).tolist()

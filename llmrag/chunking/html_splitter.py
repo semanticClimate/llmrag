@@ -20,7 +20,7 @@ Key Concepts:
 
 from typing import List  # Python type hints - helps catch errors early
 from lxml import html    # Library for parsing HTML (like reading a web page)
-from langchain.schema import Document  # Standard format for RAG documents
+from langchain_core.documents import Document  # Standard format for RAG documents
 
 
 class HtmlTextSplitter:

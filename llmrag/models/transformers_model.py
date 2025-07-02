@@ -1,3 +1,4 @@
+from typing import List
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from llmrag.models.base_model import BaseModel
 from langchain_core.documents import Document
@@ -22,7 +23,7 @@ class TransformersModel(BaseModel):
     Methods:
         generate(prompt: str, temperature: float) -> str:
             Generates text from a given prompt.
-        generate(query: str, documents: list[Document]) -> str:
+        generate(query: str, documents: List[Document]) -> str:
             Generates text from a query and context documents.
     """
 
@@ -68,7 +69,7 @@ class TransformersModel(BaseModel):
             self.generator = pipeline("text-generation", model=model_name, device=device_id)
             self.use_pipeline = True
 
-    def generate(self, prompt_or_query: str, temperature: float = 0.7, documents: list[Document] = None) -> str:
+    def generate(self, prompt_or_query: str, temperature: float = 0.7, documents: List[Document] = None) -> str:
         """
         Generate text from a prompt or query with optional context documents.
         
@@ -85,7 +86,7 @@ class TransformersModel(BaseModel):
         Args:
             prompt_or_query (str): The prompt or query to generate from
             temperature (float): Sampling temperature for generation
-            documents (list[Document], optional): Context documents for RAG-style generation
+            documents (List[Document], optional): Context documents for RAG-style generation
             
         Returns:
             str: The generated text

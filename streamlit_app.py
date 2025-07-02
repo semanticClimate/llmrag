@@ -62,14 +62,80 @@ def init_session_state():
         st.session_state.device = "cpu"
 
 
+def organize_chapters_by_working_group(chapters_with_titles):
+    """
+    Organize chapters by working group for better navigation.
+    
+    Args:
+        chapters_with_titles: List of (path, title) tuples
+        
+    Returns:
+        Dict with working groups as keys and lists of chapters as values
+    """
+    organized = {}
+    
+    for path, title in chapters_with_titles:
+        # Extract working group from path (e.g., "wg1" from "wg1/chapter02")
+        parts = path.split('/')
+        if len(parts) >= 2:
+            working_group = parts[0]  # e.g., "wg1"
+            chapter_num = parts[1]    # e.g., "chapter02"
+            
+            if working_group not in organized:
+                organized[working_group] = []
+            
+            # Truncate title if too long (with tooltip for full title)
+            truncated_title = title[:60] + "..." if len(title) > 60 else title
+            
+            organized[working_group].append({
+                'path': path,
+                'title': title,
+                'truncated_title': truncated_title,
+                'chapter_num': chapter_num
+            })
+    
+    # Sort chapters within each working group
+    for wg in organized:
+        organized[wg].sort(key=lambda x: x['chapter_num'])
+    
+    return organized
+
+
+def get_safe_device():
+    """
+    Get a safe device setting, defaulting to CPU if GPU is not available.
+    """
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            # Check macOS version for MPS compatibility
+            import platform
+            if platform.system() == "Darwin":
+                # Parse macOS version
+                version_str = platform.mac_ver()[0]
+                try:
+                    major, minor = map(int, version_str.split('.')[:2])
+                    if major >= 14 or (major == 13 and minor >= 0):
+                        return "mps"
+                except:
+                    pass
+            return "cpu"
+        else:
+            return "cpu"
+    except:
+        return "cpu"
+
+
 def load_chapter_interface():
     """
-    Interface for loading chapters.
+    Interface for loading chapters with improved cascading menu.
     
     STUDENT EXPLANATION:
     This function creates the web interface for loading chapters. It's like creating
     a form where users can:
-    - Select which chapter they want to load
+    - Select which chapter they want to load using cascading menus
     - Enter their user ID
     - Choose which AI model to use
     - Click a button to load everything
@@ -94,30 +160,48 @@ def load_chapter_interface():
         st.error(f"❌ Error loading chapters: {e}")
         return
     
-    # Create a nice display of available chapters
-    st.subheader("Available Chapters")
+    # Organize chapters by working group
+    organized_chapters = organize_chapters_by_working_group(chapters_with_titles)
     
-    # Show chapters in a more readable format
-    for i, (chapter_path, title) in enumerate(chapters_with_titles, 1):
-        with st.expander(f"📚 {chapter_path}", expanded=False):
-            st.write(f"**Title:** {title}")
-            st.write(f"**Path:** `{chapter_path}`")
+    # Chapter selection with cascading menus
+    st.subheader("Select Chapter")
     
-    # Chapter selection dropdown with titles
-    # Create options for the dropdown: "Title (path)" format
-    chapter_options = [f"{title} ({path})" for path, title in chapters_with_titles]
-    chapter_paths = [path for path, title in chapters_with_titles]
-    
-    selected_chapter_display = st.selectbox(
-        "Select Chapter:",
-        chapter_options,
-        index=0 if chapter_options else None,
-        help="Choose an IPCC chapter to load"
+    # First level: Working Group selection
+    working_groups = sorted(organized_chapters.keys())
+    selected_wg = st.selectbox(
+        "Working Group:",
+        working_groups,
+        help="Select the IPCC Working Group"
     )
     
-    # Extract the chapter path from the selected option
-    if selected_chapter_display:
-        selected_chapter = chapter_paths[chapter_options.index(selected_chapter_display)]
+    if selected_wg:
+        # Second level: Chapter selection within working group
+        chapters_in_wg = organized_chapters[selected_wg]
+        
+        # Create options with truncated titles and chapter numbers
+        chapter_options = []
+        chapter_paths = []
+        
+        for chapter in chapters_in_wg:
+            # Format: "Chapter 02: Truncated Title..."
+            option_text = f"Chapter {chapter['chapter_num'].replace('chapter', '')}: {chapter['truncated_title']}"
+            chapter_options.append(option_text)
+            chapter_paths.append(chapter['path'])
+        
+        selected_chapter_index = st.selectbox(
+            "Chapter:",
+            range(len(chapter_options)),
+            format_func=lambda i: chapter_options[i] if i < len(chapter_options) else "",
+            help="Select a chapter (hover for full title)"
+        )
+        
+        # Show full title as tooltip/info
+        if selected_chapter_index < len(chapters_in_wg):
+            selected_chapter_info = chapters_in_wg[selected_chapter_index]
+            st.info(f"📖 **Full Title:** {selected_chapter_info['title']}")
+            selected_chapter = selected_chapter_info['path']
+        else:
+            selected_chapter = None
     else:
         selected_chapter = None
     
@@ -141,12 +225,18 @@ def load_chapter_interface():
         )
     
     with col2:
-        # Device selection dropdown
+        # Device selection with smart defaults
+        safe_device = get_safe_device()
+        device_options = ["auto", "cpu", "mps", "cuda"]
+        
+        # Set default index based on safe device
+        default_device_index = device_options.index(safe_device) if safe_device in device_options else 1
+        
         device = st.selectbox(
             "Device", 
-            ["auto", "cpu", "mps", "cuda"], 
-            index=0,
-            help="Select the device to run the model on (auto = best available)"
+            device_options,
+            index=default_device_index,
+            help=f"Select the device to run the model on (auto = best available, current best: {safe_device})"
         )
     
     # Load button

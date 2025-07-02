@@ -1,7 +1,7 @@
 import unittest
 
 import pytest
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 from llmrag.utils.yaml_loader import load_paragraphs_yaml
 from llmrag.chunking.text_splitter import split_documents

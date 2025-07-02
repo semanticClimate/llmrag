@@ -2,7 +2,7 @@ import unittest
 import yaml
 import os
 
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 from llmrag.embeddings import load_embedder
 from llmrag.models import load_model

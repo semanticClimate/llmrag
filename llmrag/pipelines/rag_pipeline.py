@@ -1,6 +1,7 @@
 from llmrag.retrievers.chroma_store import ChromaVectorStore
 from llmrag.generators.local_generator import LocalGenerator
-from langchain.schema import Document
+from langchain_core.documents import Document
+import re
 
 class RAGPipeline:
 
@@ -10,7 +11,7 @@ class RAGPipeline:
 
         Args:
             model: An object that implements `generate(prompt: str, temperature: float) -> str`.
-            vector_store: An object that implements `retrieve(query: str, top_k: int) -> list[Document]`.
+            vector_store: An object that implements `retrieve(query: str, top_k: int) -> List[Document]`.
 
         Raises:
             ValueError: If either `model` or `vector_store` is None.
@@ -50,15 +51,30 @@ class RAGPipeline:
 
         context = "\n".join(doc.page_content for doc in unique_docs)
 
-        # Clear instruction with delimiter to prevent multiple QA pairs
-        prompt = f"""You are a helpful assistant. Use ONLY the following context to answer the user's question.
-    If the answer is not in the context, say "I don't know."
+        # Check if this is a section-specific query
+        section_match = self._extract_section_query(query)
+        
+        if section_match:
+            # Use a more focused prompt for section queries
+            prompt = f"""You are a helpful assistant answering questions about specific sections of a document. 
+Use ONLY the following context to answer the user's question about section {section_match}.
+If the answer is not in the context, say "I don't know."
 
-    Context:
-    {context}
+Context:
+{context}
 
-    Question: {query}
-    Answer:"""
+Question: {query}
+Answer:"""
+        else:
+            # Use the standard prompt for general queries
+            prompt = f"""You are a helpful assistant. Use ONLY the following context to answer the user's question.
+If the answer is not in the context, say "I don't know."
+
+Context:
+{context}
+
+Question: {query}
+Answer:"""
 
         answer = self.model.generate(prompt, temperature=temperature)
         
@@ -79,6 +95,22 @@ class RAGPipeline:
             "context": unique_docs,
             "paragraph_ids": unique_paragraph_ids
         }
+
+    def _extract_section_query(self, query: str) -> str:
+        """
+        Extract section number from query if present.
+        """
+        # Look for section numbers in parentheses
+        match = re.search(r'\((\d+\.\d+(?:\.\d+)*)\)', query)
+        if match:
+            return match.group(1)
+        
+        # Look for section numbers at the beginning or with "section"
+        match = re.search(r'(?:section\s+)?(\d+\.\d+(?:\.\d+)*)', query, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        
+        return None
 
     def query(self, question: str, top_k=4, temperature=0.3) -> str:
         """

@@ -71,17 +71,38 @@ class ChapterRAG:
         self.pipelines: Dict[str, RAGPipeline] = {}  # Store RAG pipelines for each user+chapter combination
         self.model_name = model_name
         
-        # Auto-detect best device
+        # Auto-detect best device with robust fallback
         if device == "auto":
-            import torch
-            if torch.backends.mps.is_available():
-                self.device = "mps"  # Apple Silicon GPU
-            elif torch.cuda.is_available():
-                self.device = "cuda"  # NVIDIA GPU
-            else:
-                self.device = "cpu"  # CPU fallback
+            self.device = self._get_safe_device()
         else:
             self.device = device
+        
+    def _get_safe_device(self) -> str:
+        """
+        Get a safe device setting, defaulting to CPU if GPU is not available or problematic.
+        """
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "cuda"
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                # Check macOS version for MPS compatibility
+                import platform
+                if platform.system() == "Darwin":
+                    # Parse macOS version
+                    version_str = platform.mac_ver()[0]
+                    try:
+                        major, minor = map(int, version_str.split('.')[:2])
+                        if major >= 14 or (major == 13 and minor >= 0):
+                            return "mps"
+                    except:
+                        pass
+                return "cpu"
+            else:
+                return "cpu"
+        except Exception as e:
+            print(f"⚠️  Device detection failed: {e}, defaulting to CPU")
+            return "cpu"
         
     def _extract_chapter_title(self, html_file_path: Path) -> str:
         """

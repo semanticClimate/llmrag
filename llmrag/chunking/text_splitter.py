@@ -1,6 +1,4 @@
-from langchain.schema import Document
-
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 def split_documents(text, chunk_size=100, overlap=20, metadata=None):
     if overlap >= chunk_size:

@@ -1,5 +1,5 @@
 import yaml
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 def load_paragraphs_yaml(path):
     """
@@ -9,7 +9,7 @@ def load_paragraphs_yaml(path):
         path (str): Path to the YAML file.
 
     Returns:
-        list[Document]: List of Document instances.
+        List[Document]: List of Document instances.
     """
     with open(path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
