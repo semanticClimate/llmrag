@@ -26,12 +26,34 @@ First, make sure you have Python 3.12+ installed:
 **Note**: This system requires Python 3.12 or higher for optimal performance and compatibility.
 
 ### 2. Download and Setup
+
+#### Fast Installation (Recommended)
+**For Windows users experiencing slow installation:**
+
 ```bash
 # Download the project
 git clone https://github.com/yourusername/llmrag.git
 cd llmrag
 
-# Install required packages
+# Use the optimized installation script
+# Windows:
+install_fast.bat
+
+# Unix/Linux/Mac:
+./install_fast.sh
+```
+
+#### Standard Installation
+```bash
+# Download the project
+git clone https://github.com/yourusername/llmrag.git
+cd llmrag
+
+# Install with optimization flags (faster)
+pip install --upgrade pip setuptools wheel
+pip install --use-feature=fast-deps --only-binary=all -e .
+
+# Or install required packages
 pip install -r requirements.txt
 ```
 
@@ -263,6 +285,33 @@ Paragraph IDs found: ['4.1_p3', '4.3.2.2_p2']
 
 ## 🐛 Troubleshooting
 
+### Slow Installation Issues
+**If `pip install -e .` takes more than 10 minutes:**
+
+1. **Use the fast installation scripts**:
+   ```bash
+   # Windows
+   install_fast.bat
+   
+   # Unix/Linux/Mac
+   ./install_fast.sh
+   ```
+
+2. **Try staged installation**:
+   ```bash
+   pip install --upgrade pip setuptools wheel
+   pip install pyyaml lxml pytest rich streamlit toml
+   pip install chromadb langchain
+   pip install --only-binary=all transformers sentence-transformers
+   pip install -e .
+   ```
+
+3. **Use conda for heavy packages** (Windows):
+   ```bash
+   conda install -c conda-forge transformers sentence-transformers
+   pip install -e .
+   ```
+
 ### Windows-Specific Issues
 - **Virtual Environment**: Make sure to use the correct activation script for your shell
 - **Dependencies**: If you encounter issues with `lxml` or `transformers`, try:
@@ -270,11 +319,13 @@ Paragraph IDs found: ['4.1_p3', '4.3.2.2_p2']
   pip install lxml transformers
   ```
 - **DLL Errors**: Ensure you have the latest Python and pip versions
+- **Visual Studio Build Tools**: Install Visual Studio Build Tools 2019+ for compilation
 
 ### General Issues
 - **Python Version**: We recommend Python 3.12. Some libraries may have compatibility issues with older versions
 - **Virtual Environment**: *ALWAYS USE A VIRTUAL ENVIRONMENT* to avoid conflicts
 - **NumPy Conflicts**: If you have NumPy in your global environment, it may cause issues. Use a clean virtual environment
+- **Network Issues**: Large model downloads may timeout. Use `pip install --timeout 300` for longer timeouts
 
 ## 📁 Project Structure
 
