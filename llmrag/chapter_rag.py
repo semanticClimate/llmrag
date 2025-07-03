@@ -314,6 +314,13 @@ class ChapterRAG:
                 
                 chapters_with_titles.append((chapter_path, title))
         
+        print("Debug Info: Checking directory for chapters...")
+        print(f"Debug Info: Directory path: {Path('tests/ipcc').resolve()}")
+        if not chapters_with_titles:
+            print("Debug Info: No chapters found in the directory.")
+        else:
+            print(f"Debug Info: Chapters found: {chapters_with_titles}")
+        
         return sorted(chapters_with_titles)
 
 
@@ -387,4 +394,4 @@ def list_available_chapters_with_titles() -> List[Tuple[str, str]]:
     Useful for creating better user interfaces.
     """
     rag = ChapterRAG()
-    return rag.list_chapters_with_titles() 
+    return rag.list_chapters_with_titles()

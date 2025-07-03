@@ -4,6 +4,8 @@ Test script for ingesting IPCC HTML content with paragraph IDs and testing RAG p
 """
 
 import os
+import platform
+from pathlib import Path
 from llmrag.ingestion.ingest_html import ingest_html_file
 from llmrag.embeddings import SentenceTransformersEmbedder
 from llmrag.retrievers import ChromaVectorStore
@@ -12,9 +14,11 @@ from llmrag.pipelines.rag_pipeline import RAGPipeline
 
 def test_ipcc_ingestion():
     """Test ingestion of IPCC HTML file and RAG pipeline with paragraph IDs."""
+    # Normalize path for cross-platform compatibility
+    html_file = Path("tests/ipcc/wg1/chapter04/html_with_ids.html").as_posix()
     
-    # Path to the IPCC HTML file
-    html_file = "tests/ipcc/wg1/chapter04/html_with_ids.html"
+    if platform.system() == "Windows":
+        html_file = html_file.replace("/", "\\")  # Adjust for Windows if needed
     
     if not os.path.exists(html_file):
         print(f"Error: HTML file not found at {html_file}")
@@ -90,4 +94,4 @@ def test_ipcc_ingestion():
             print(f"❌ Query failed: {e}")
 
 if __name__ == "__main__":
-    test_ipcc_ingestion() 
+    test_ipcc_ingestion()

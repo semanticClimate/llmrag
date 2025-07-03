@@ -75,6 +75,9 @@ def organize_chapters_by_working_group(chapters_with_titles):
     organized = {}
     
     for path, title in chapters_with_titles:
+        # Normalize path separators for cross-platform compatibility
+        path = path.replace("\\", "/")  # Ensure paths use forward slashes
+        
         # Extract working group from path (e.g., "wg1" from "wg1/chapter02")
         parts = path.split('/')
         if len(parts) >= 2:
@@ -158,10 +161,23 @@ def load_chapter_interface():
             return
     except Exception as e:
         st.error(f"❌ Error loading chapters: {e}")
+        st.write("Debug Info: Ensure the `list_available_chapters_with_titles` function is returning valid data.")
+        st.write("Debug Info: Check if the directory exists and contains valid files.")
+        return
+    
+    # Validate chapter data format
+    if not isinstance(chapters_with_titles, list) or not all(isinstance(item, tuple) and len(item) == 2 for item in chapters_with_titles):
+        st.error("❌ Invalid chapter data format. Expected a list of (path, title) tuples.")
+        st.write(f"Debug Info: Received data: {chapters_with_titles}")
         return
     
     # Organize chapters by working group
-    organized_chapters = organize_chapters_by_working_group(chapters_with_titles)
+    try:
+        organized_chapters = organize_chapters_by_working_group(chapters_with_titles)
+    except Exception as e:
+        st.error(f"❌ Error organizing chapters: {e}")
+        st.write("Debug Info: Ensure chapter paths are correctly formatted.")
+        return
     
     # Chapter selection with cascading menus
     st.subheader("Select Chapter")
@@ -264,6 +280,7 @@ def load_chapter_interface():
                 
             except Exception as e:
                 st.error(f"❌ Error loading chapter: {e}")
+                st.write("Debug Info: Ensure the chapter path and user ID are valid.")
 
 
 def chat_interface():
