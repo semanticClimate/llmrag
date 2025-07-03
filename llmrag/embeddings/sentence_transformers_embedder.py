@@ -36,7 +36,17 @@ sentence_transformer
         if texts and isinstance(texts[0], Document):
             texts = [doc.page_content for doc in texts]
 
-        return self.model.encode(texts).tolist()
+        # Show progress for large batches
+        if len(texts) > 100:
+            print(f"[Embed] Generating embeddings for {len(texts)} chunks...")
+        
+        embeddings = self.model.encode(texts).tolist()
+        
+        if len(texts) > 100:
+            print(f"[Embed] Completed embedding generation")
+        
+        return embeddings
+
     def embed_query(self, query: str) -> List[float]:
         """
         Embed a single query string.
@@ -59,4 +69,13 @@ sentence_transformer
         Returns:
             List[List[float]]: List of embedding vectors.
         """
-        return self.model.encode(texts, convert_to_tensor=False).tolist()
+        # Show progress for large batches
+        if len(texts) > 100:
+            print(f"[Embed] Generating embeddings for {len(texts)} documents...")
+        
+        embeddings = self.model.encode(texts, convert_to_tensor=False).tolist()
+        
+        if len(texts) > 100:
+            print(f"[Embed] Completed embedding generation")
+        
+        return embeddings

@@ -27,9 +27,34 @@ import json             # For working with JSON data
 import time             # For timestamps and delays
 from pathlib import Path  # Modern way to work with file paths
 from typing import Dict, List, Optional
+import os
 
 # Import our main RAG system
 from llmrag.chapter_rag import ChapterRAG, list_available_chapters, list_available_chapters_with_titles
+
+
+def get_chapter_size(chapter_path: str) -> str:
+    """
+    Get the approximate size of a chapter for display.
+    
+    Args:
+        chapter_path: Path to the chapter (e.g., "wg1/chapter02")
+        
+    Returns:
+        Human-readable size string (e.g., "1.2 MB", "850 KB")
+    """
+    try:
+        html_file = Path(f"tests/ipcc/{chapter_path}/html_with_ids.html")
+        if html_file.exists():
+            size_bytes = html_file.stat().st_size
+            if size_bytes > 1024 * 1024:
+                return f"{size_bytes / (1024 * 1024):.1f} MB"
+            else:
+                return f"{size_bytes / 1024:.0f} KB"
+        else:
+            return "Unknown"
+    except:
+        return "Unknown"
 
 
 def init_session_state():
@@ -87,16 +112,20 @@ def organize_chapters_by_working_group(chapters_with_titles):
             # Truncate title if too long (with tooltip for full title)
             truncated_title = title[:60] + "..." if len(title) > 60 else title
             
+            # Get chapter size
+            chapter_size = get_chapter_size(path)
+            
             organized[working_group].append({
                 'path': path,
                 'title': title,
                 'truncated_title': truncated_title,
-                'chapter_num': chapter_num
+                'chapter_num': chapter_num,
+                'size': chapter_size
             })
     
-    # Sort chapters within each working group
+    # Sort chapters within each working group by size (smallest first) then by chapter number
     for wg in organized:
-        organized[wg].sort(key=lambda x: x['chapter_num'])
+        organized[wg].sort(key=lambda x: (x['size'], x['chapter_num']))
     
     return organized
 
@@ -178,13 +207,13 @@ def load_chapter_interface():
         # Second level: Chapter selection within working group
         chapters_in_wg = organized_chapters[selected_wg]
         
-        # Create options with truncated titles and chapter numbers
+        # Create options with truncated titles, chapter numbers, and sizes
         chapter_options = []
         chapter_paths = []
         
         for chapter in chapters_in_wg:
-            # Format: "Chapter 02: Truncated Title..."
-            option_text = f"Chapter {chapter['chapter_num'].replace('chapter', '')}: {chapter['truncated_title']}"
+            # Format: "Chapter 02 (850 KB): Truncated Title..."
+            option_text = f"Chapter {chapter['chapter_num'].replace('chapter', '')} ({chapter['size']}): {chapter['truncated_title']}"
             chapter_options.append(option_text)
             chapter_paths.append(chapter['path'])
         
@@ -192,13 +221,13 @@ def load_chapter_interface():
             "Chapter:",
             range(len(chapter_options)),
             format_func=lambda i: chapter_options[i] if i < len(chapter_options) else "",
-            help="Select a chapter (hover for full title)"
+            help="Select a chapter (hover for full title). Smaller chapters load faster for testing."
         )
         
-        # Show full title as tooltip/info
+        # Show full title and size as tooltip/info
         if selected_chapter_index < len(chapters_in_wg):
             selected_chapter_info = chapters_in_wg[selected_chapter_index]
-            st.info(f"📖 **Full Title:** {selected_chapter_info['title']}")
+            st.info(f"📖 **Full Title:** {selected_chapter_info['title']}  \n📊 **Size:** {selected_chapter_info['size']}")
             selected_chapter = selected_chapter_info['path']
         else:
             selected_chapter = None
@@ -248,9 +277,24 @@ def load_chapter_interface():
         # Show loading spinner while processing
         with st.spinner("Loading chapter..."):
             try:
+                # Create progress bar for loading
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Update progress
+                status_text.text("Initializing RAG system...")
+                progress_bar.progress(10)
+                
                 # Create RAG system and load chapter
                 rag = ChapterRAG(model_name=model_name, device=device)
+                
+                status_text.text("Loading chapter content...")
+                progress_bar.progress(30)
+                
                 rag.load_chapter(selected_chapter, user_id)
+                
+                status_text.text("Finalizing setup...")
+                progress_bar.progress(90)
                 
                 # Store in session state (persistent memory)
                 st.session_state.rag_system = rag
@@ -258,6 +302,9 @@ def load_chapter_interface():
                 st.session_state.current_user = user_id
                 st.session_state.model_name = model_name
                 st.session_state.device = device
+                
+                progress_bar.progress(100)
+                status_text.text("Complete!")
                 
                 st.success(f"✅ Chapter loaded successfully for user '{user_id}'!")
                 st.rerun()  # Refresh the page to show the chat interface
@@ -340,6 +387,14 @@ def chat_interface():
         with st.chat_message("assistant"):
             with st.spinner("🤖 Thinking..."):
                 try:
+                    # Create progress indicators
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Update progress
+                    status_text.text("Searching for relevant content...")
+                    progress_bar.progress(25)
+                    
                     # Ask the question
                     result = st.session_state.rag_system.ask(
                         prompt, 
@@ -347,7 +402,13 @@ def chat_interface():
                         st.session_state.current_user
                     )
                     
+                    status_text.text("Generating answer...")
+                    progress_bar.progress(75)
+                    
                     st.write(result['answer'])
+                    
+                    status_text.text("Complete!")
+                    progress_bar.progress(100)
                     
                     # Store in chat history
                     metadata = {
@@ -401,47 +462,58 @@ def settings_interface():
                     chapter_title = title
                     break
         except:
-            chapter_title = None
+            chapter_title = st.session_state.current_chapter
         
-        if chapter_title:
-            st.write(f"**Current Chapter:** {chapter_title}")
-            st.caption(f"Path: {st.session_state.current_chapter}")
-        else:
-            st.write(f"**Current Chapter:** {st.session_state.current_chapter}")
+        st.write(f"**Current Chapter:** {chapter_title or st.session_state.current_chapter}")
+        st.write(f"**User ID:** {st.session_state.current_user}")
+        st.write(f"**Model:** {st.session_state.model_name}")
+        st.write(f"**Device:** {st.session_state.device}")
+        
+        # Show chapter size
+        chapter_size = get_chapter_size(st.session_state.current_chapter)
+        st.write(f"**Chapter Size:** {chapter_size}")
+        
+        # Show chat history count
+        st.write(f"**Chat Messages:** {len(st.session_state.chat_history)}")
     else:
-        st.write("**Current Chapter:** None")
+        st.write("No chapter loaded.")
     
-    st.write(f"**Current User:** {st.session_state.current_user or 'None'}")
-    st.write(f"**Model:** {st.session_state.model_name}")
-    st.write(f"**Device:** {st.session_state.device}")
+    # Session management
+    st.subheader("Session Management")
     
-    # Clear session button
-    if st.button("🗑️ Clear Session"):
-        st.session_state.rag_system = None
-        st.session_state.current_chapter = None
-        st.session_state.current_user = None
-        st.session_state.chat_history = []
-        st.success("Session cleared!")
-        st.rerun()
+    col1, col2 = st.columns(2)
     
-    # Export chat history
+    with col1:
+        if st.button("🗑️ Clear Chat History"):
+            st.session_state.chat_history = []
+            st.success("Chat history cleared!")
+            st.rerun()
+    
+    with col2:
+        if st.button("🔄 Reset Session"):
+            st.session_state.rag_system = None
+            st.session_state.current_chapter = None
+            st.session_state.current_user = None
+            st.session_state.chat_history = []
+            st.success("Session reset! Please load a chapter again.")
+            st.rerun()
+    
+    # Export functionality
+    st.subheader("Export Data")
+    
     if st.session_state.chat_history:
-        st.subheader("Export Chat History")
-        
-        # Prepare chat data for export
-        chat_data = {
-            'chapter': st.session_state.current_chapter,
-            'user_id': st.session_state.current_user,
-            'model': st.session_state.model_name,
-            'device': st.session_state.device,
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'chat_history': [
+        # Convert chat history to JSON
+        export_data = {
+            "chapter": st.session_state.current_chapter,
+            "user_id": st.session_state.current_user,
+            "model": st.session_state.model_name,
+            "device": st.session_state.device,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "chat_history": [
                 {
-                    'question': q,
-                    'answer': a,
-                    'paragraph_ids': m.get('paragraph_ids', ''),
-                    'chapter': m.get('chapter', ''),
-                    'user_id': m.get('user_id', '')
+                    "question": q,
+                    "answer": a,
+                    "metadata": m
                 }
                 for q, a, m in st.session_state.chat_history
             ]
@@ -450,34 +522,41 @@ def settings_interface():
         # Create download button
         st.download_button(
             label="📥 Download Chat History (JSON)",
-            data=json.dumps(chat_data, indent=2),
-            file_name=f"chat_history_{st.session_state.current_chapter}_{st.session_state.current_user}_{time.strftime('%Y%m%d_%H%M%S')}.json",
+            data=json.dumps(export_data, indent=2),
+            file_name=f"llmrag_chat_{st.session_state.current_chapter.replace('/', '_')}_{st.session_state.current_user}_{time.strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json"
         )
+    else:
+        st.write("No chat history to export.")
+    
+    # Chapter information
+    st.subheader("Available Chapters")
+    try:
+        chapters_with_titles = list_available_chapters_with_titles()
+        organized_chapters = organize_chapters_by_working_group(chapters_with_titles)
+        
+        for wg, chapters in organized_chapters.items():
+            st.write(f"**{wg.upper()}:**")
+            for chapter in chapters:
+                st.write(f"  - {chapter['chapter_num']} ({chapter['size']}): {chapter['title']}")
+    except Exception as e:
+        st.error(f"Error loading chapter information: {e}")
 
 
 def main():
     """
-    Main Streamlit application.
+    Main application function.
     
     STUDENT EXPLANATION:
-    This is the main function that sets up the entire web application.
-    It's like the "blueprint" for the entire website.
+    This is the main function that runs the entire application. It:
+    1. Sets up the page configuration
+    2. Initializes session state
+    3. Creates the navigation sidebar
+    4. Shows the appropriate interface based on user selection
     
-    The main function:
-    1. Configures the page (title, icon, layout)
-    2. Initializes session state (persistent memory)
-    3. Creates the sidebar navigation
-    4. Routes to the appropriate page based on user selection
-    5. Adds footer information
-    
-    This pattern is common in web applications:
-    - Set up the page
-    - Create navigation
-    - Handle user interactions
-    - Display appropriate content
+    Think of it like the "main menu" of a video game - it's where everything starts.
     """
-    # Configure the page
+    # Page configuration
     st.set_page_config(
         page_title="LLMRAG - IPCC Chapter RAG System",
         page_icon="📚",
@@ -485,36 +564,33 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Initialize session state (persistent memory)
+    # Initialize session state
     init_session_state()
     
-    # Create sidebar (navigation panel on the left)
-    st.sidebar.title("📚 LLMRAG")
+    # Sidebar navigation
+    st.sidebar.title("📚 LLMRAG System")
     st.sidebar.markdown("IPCC Chapter RAG System")
     
     # Navigation menu
     page = st.sidebar.selectbox(
-        "Navigation:",
-        ["Load Chapter", "Chat", "Settings"],
+        "Navigation",
+        ["📖 Load Chapter", "💬 Chat", "⚙️ Settings & Info"],
         index=0 if not st.session_state.rag_system else 1
     )
     
-    # Route to appropriate page based on selection
-    if page == "Load Chapter":
+    # Display appropriate interface based on selection
+    if page == "📖 Load Chapter":
         load_chapter_interface()
-    elif page == "Chat":
+    elif page == "💬 Chat":
         chat_interface()
-    elif page == "Settings":
+    elif page == "⚙️ Settings & Info":
         settings_interface()
     
-    # Footer information
+    # Footer
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**About:**")
-    st.sidebar.markdown("LLMRAG is a Retrieval-Augmented Generation system for IPCC reports.")
-    st.sidebar.markdown("Each user gets their own sandbox while sharing the same chapter content.")
+    st.sidebar.markdown("**Team Testing Mode**")
+    st.sidebar.markdown("Use smaller chapters first for faster testing.")
 
 
-# This is a Python idiom that means "only run this if the file is executed directly"
-# It prevents the code from running if the file is imported as a module
 if __name__ == "__main__":
     main()

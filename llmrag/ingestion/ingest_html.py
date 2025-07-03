@@ -15,10 +15,12 @@ def ingest_html_file(file_path: str, collection_name: str = "html_docs", chunk_s
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"HTML file not found: {file_path}")
 
+    print(f"[Ingest] Reading HTML file: {file_path}")
     with open(file_path, "r", encoding="utf-8") as f:
         html_content = f.read()
 
     # Step 1: Chunk HTML into text segments
+    print(f"[Ingest] Splitting HTML into chunks (size: {chunk_size} chars)...")
     splitter = HtmlTextSplitter(chunk_size=chunk_size)
     chunks = splitter.split(html_content)
     if not chunks:
@@ -27,12 +29,14 @@ def ingest_html_file(file_path: str, collection_name: str = "html_docs", chunk_s
     print(f"[Ingest] Extracted {len(chunks)} chunks from {file_path}")
 
     # Step 2: Embed chunks
+    print(f"[Ingest] Generating embeddings for {len(chunks)} chunks...")
     embedder = SentenceTransformersEmbedder()
     embeddings = embedder.embed(chunks)
 
     # Step 3: Store in Chroma
+    print(f"[Ingest] Storing {len(chunks)} chunks in Chroma collection '{collection_name}'...")
     store = ChromaVectorStore(collection_name=collection_name, embedder=embedder)
     store.add_documents(chunks)
     store.persist()
 
-    print(f"[Ingest] Ingested {len(chunks)} chunks into Chroma collection '{collection_name}'")
+    print(f"[Ingest] Successfully ingested {len(chunks)} chunks into Chroma collection '{collection_name}'")
