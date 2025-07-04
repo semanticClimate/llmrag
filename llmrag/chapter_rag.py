@@ -23,6 +23,7 @@ Key Concepts:
 """
 
 import os
+import re
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path  # Modern way to work with file paths in Python
 from lxml import html  # For parsing HTML to extract titles
@@ -33,6 +34,122 @@ from llmrag.embeddings import SentenceTransformersEmbedder  # Converts text to v
 from llmrag.retrievers import ChromaVectorStore  # Database for storing and searching documents
 from llmrag.models.transformers_model import TransformersModel  # Language model for generating answers
 from llmrag.pipelines.rag_pipeline import RAGPipeline  # Orchestrates the whole process
+
+
+def normalize_chapter_name(chapter_path: str) -> Tuple[str, int, int]:
+    """
+    Normalize chapter name for bibliographic sorting.
+    
+    STUDENT EXPLANATION:
+    This function converts chapter paths like "wg1/chapter04" or "wg2/Chapter15" 
+    into a standardized format for proper sorting. It extracts:
+    1. Working group number (1 or 2)
+    2. Chapter number (with leading zeros)
+    3. Original path for reference
+    
+    This ensures chapters are sorted correctly: wg1/chapter02, wg1/chapter04, wg1/chapter08, etc.
+    
+    Args:
+        chapter_path: Chapter path like "wg1/chapter04" or "wg2/Chapter15"
+        
+    Returns:
+        Tuple of (normalized_path, working_group, chapter_number)
+    """
+    # Extract working group and chapter number
+    match = re.match(r'wg(\d+)/(?:chapter|Chapter)(\d+)', chapter_path, re.IGNORECASE)
+    if match:
+        working_group = int(match.group(1))
+        chapter_num = int(match.group(2))
+        
+        # Create normalized path with leading zeros
+        normalized = f"wg{working_group}/chapter{chapter_num:02d}"
+        return normalized, working_group, chapter_num
+    
+    # Fallback for non-standard names
+    return chapter_path, 0, 0
+
+
+def resolve_corpus_path(base_path: str, corpus_url: str = None) -> str:
+    """
+    Resolve corpus path, supporting both local filesystem and URLs.
+    
+    STUDENT EXPLANATION:
+    This function handles different corpus sources:
+    1. Local filesystem paths (e.g., "/data/ipcc", "./corpus")
+    2. Remote URLs (e.g., "https://example.com/ipcc")
+    3. Relative paths (e.g., "tests/ipcc")
+    
+    Args:
+        base_path: Base path to corpus (local or URL)
+        corpus_url: Optional URL override for remote access
+        
+    Returns:
+        Resolved corpus path
+    """
+    if corpus_url:
+        # Use provided URL
+        return corpus_url.rstrip('/')
+    elif base_path.startswith(('http://', 'https://')):
+        # Already a URL
+        return base_path.rstrip('/')
+    else:
+        # Local filesystem path
+        return str(Path(base_path).resolve())
+
+
+def get_chapter_url(corpus_path: str, chapter_path: str) -> str:
+    """
+    Generate URL for a specific chapter using real IPCC URLs.
+    
+    Args:
+        corpus_path: Base corpus path (URL or local path)
+        chapter_path: Chapter path (e.g., "wg1/chapter02")
+        
+    Returns:
+        Full URL to the chapter
+    """
+    if corpus_path.startswith(('http://', 'https://')):
+        return f"{corpus_path}/{chapter_path}"
+    else:
+        # Generate real IPCC URL based on chapter path
+        match = re.match(r'wg(\d+)/(?:chapter|Chapter)(\d+)', chapter_path, re.IGNORECASE)
+        if match:
+            wg_num = match.group(1)
+            chapter_num = match.group(2)
+            # IPCC URL format: https://www.ipcc.ch/report/ar6/wg1/chapter/chapter-4/
+            return f"https://www.ipcc.ch/report/ar6/wg{wg_num}/chapter/chapter-{chapter_num}/"
+        else:
+            # Fallback for non-standard chapter names
+            return f"https://www.ipcc.ch/report/ar6/{chapter_path}/"
+
+
+def sort_chapters_bibliographically(chapters_with_titles: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """
+    Sort chapters in bibliographic order (WG1 first, then WG2, with chapter numbers sorted).
+    
+    STUDENT EXPLANATION:
+    This function sorts chapters in the proper order for IPCC reports:
+    1. Working Group 1 (Physical Science Basis) chapters first
+    2. Working Group 2 (Impacts, Adaptation, Vulnerability) chapters second
+    3. Within each working group, chapters sorted by number
+    
+    Args:
+        chapters_with_titles: List of (chapter_path, title) tuples
+        
+    Returns:
+        Sorted list of (chapter_path, title) tuples
+    """
+    # Normalize and sort chapters
+    normalized_chapters = []
+    for chapter_path, title in chapters_with_titles:
+        normalized_path, wg, chapter_num = normalize_chapter_name(chapter_path)
+        normalized_chapters.append((normalized_path, title, wg, chapter_num, chapter_path))
+    
+    # Sort by working group, then by chapter number
+    normalized_chapters.sort(key=lambda x: (x[2], x[3]))
+    
+    # Return original paths with titles, but in sorted order
+    return [(original_path, title) for _, title, _, _, original_path in normalized_chapters]
 
 
 class ChapterRAG:
@@ -51,7 +168,7 @@ class ChapterRAG:
     They can all access the same books, but they have their own workspace and notes.
     """
     
-    def __init__(self, base_path: str = "tests/ipcc", model_name: str = "gpt2-large", device: str = "auto"):
+    def __init__(self, base_path: str = "tests/ipcc", model_name: str = "gpt2-large", device: str = "auto", corpus_url: str = None):
         """
         Initialize the Chapter RAG system.
         
@@ -63,11 +180,20 @@ class ChapterRAG:
         answer quality while still being manageable on CPU with sufficient RAM.
         
         Args:
-            base_path: Path to IPCC chapters directory (where the documents are stored)
+            base_path: Path to IPCC chapters directory (local path or URL)
             model_name: HuggingFace model name (which AI model to use for generating answers)
             device: Device to run model on ("auto", "cpu", "mps", or "cuda")
+            corpus_url: Optional URL override for remote corpus access
         """
-        self.base_path = Path(base_path)  # Convert to Path object for easier file operations
+        # Resolve corpus path (supports local filesystem and URLs)
+        self.corpus_path = resolve_corpus_path(base_path, corpus_url)
+        
+        # For local paths, convert to Path object for easier file operations
+        if not self.corpus_path.startswith(('http://', 'https://')):
+            self.base_path = Path(self.corpus_path)
+        else:
+            self.base_path = None  # Remote corpus
+            
         self.pipelines: Dict[str, RAGPipeline] = {}  # Store RAG pipelines for each user+chapter combination
         self.model_name = model_name
         
@@ -306,19 +432,25 @@ class ChapterRAG:
     
     def list_chapters_with_titles(self) -> List[Tuple[str, str]]:
         """
-        List available chapters with their titles.
+        List available chapters with their titles, sorted bibliographically.
         
         STUDENT EXPLANATION:
-        This method returns both chapter paths and their human-readable titles.
-        It's like having a library catalog that shows both the call number and the book title.
+        This method returns both chapter paths and their human-readable titles,
+        sorted in the proper order for IPCC reports:
+        1. Working Group 1 (Physical Science Basis) chapters first
+        2. Working Group 2 (Impacts, Adaptation, Vulnerability) chapters second
+        3. Within each working group, chapters sorted by number
+        
+        It's like having a library catalog that shows both the call number and the book title,
+        organized in the standard order.
         
         Returns:
-            List of tuples: (chapter_path, chapter_title)
+            List of tuples: (chapter_path, chapter_title) sorted bibliographically
         """
         chapters_with_titles = []
         
-        if self.base_path.exists():
-            # Look for chapter directories (both "chapter" and "Chapter")
+        if self.base_path and self.base_path.exists():
+            # Local filesystem corpus
             for working_group in self.base_path.glob("wg*"):
                 if working_group.is_dir():
                     for chapter_dir in working_group.iterdir():
@@ -333,14 +465,22 @@ class ChapterRAG:
                                 title = f"Chapter {chapter_path.split('/')[-1]}"
                             
                             chapters_with_titles.append((chapter_path, title))
+        elif self.corpus_path.startswith(('http://', 'https://')):
+            # Remote corpus - for now, return basic structure
+            # In a full implementation, this would fetch the directory listing from the URL
+            print(f"🌐 Remote corpus detected: {self.corpus_path}")
+            print("📝 Note: Remote corpus listing not yet implemented")
+            # For now, return empty list - would need to implement HTTP directory listing
+            pass
         
-        return sorted(chapters_with_titles)
+        # Sort chapters bibliographically
+        return sort_chapters_bibliographically(chapters_with_titles)
 
 
 # Convenience functions for Jupyter notebooks
 # These are helper functions that make it easier to use the system in notebooks
 
-def load_chapter(chapter_name: str, user_id: str = "default", model_name: str = "gpt2-large", device: str = "auto") -> ChapterRAG:
+def load_chapter(chapter_name: str, user_id: str = "default", model_name: str = "gpt2-large", device: str = "auto", base_path: str = "tests/ipcc", corpus_url: str = None) -> ChapterRAG:
     """
     Load a chapter and return a ChapterRAG instance.
     
@@ -350,20 +490,22 @@ def load_chapter(chapter_name: str, user_id: str = "default", model_name: str = 
     Jupyter notebooks or interactive sessions.
     
     Args:
-        chapter_name: Chapter name (e.g., "wg1/chapter04")
+        chapter_name: Chapter name (e.g., "wg1/chapter02")
         user_id: User identifier
         model_name: HuggingFace model name
         device: Device to run model on
+        base_path: Base path to corpus (local path or URL)
+        corpus_url: Optional URL override for remote corpus access
         
     Returns:
         ChapterRAG instance ready for questions
     """
-    rag = ChapterRAG(model_name=model_name, device=device)
+    rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device, corpus_url=corpus_url)
     rag.load_chapter(chapter_name, user_id)
     return rag
 
 
-def ask_chapter(question: str, chapter_name: str, user_id: str = "default", model_name: str = "gpt2-large", device: str = "auto") -> Dict:
+def ask_chapter(question: str, chapter_name: str, user_id: str = "default", model_name: str = "gpt2-large", device: str = "auto", base_path: str = "tests/ipcc", corpus_url: str = None) -> Dict:
     """
     Quick function to ask a question about a chapter.
     
@@ -374,37 +516,53 @@ def ask_chapter(question: str, chapter_name: str, user_id: str = "default", mode
     
     Args:
         question: The question to ask
-        chapter_name: Chapter name (e.g., "wg1/chapter04")
+        chapter_name: Chapter name (e.g., "wg1/chapter02")
         user_id: User identifier
         model_name: HuggingFace model name
         device: Device to run model on
+        base_path: Base path to corpus (local path or URL)
+        corpus_url: Optional URL override for remote corpus access
         
     Returns:
         Dictionary with answer and metadata
     """
-    rag = ChapterRAG(model_name=model_name, device=device)
+    rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device, corpus_url=corpus_url)
     return rag.ask(question, chapter_name, user_id)
 
 
-def list_available_chapters() -> List[str]:
+def list_available_chapters(base_path: str = "tests/ipcc", corpus_url: str = None) -> List[str]:
     """
     List all available IPCC chapters.
     
     STUDENT NOTE:
     This is a simple helper function that just lists what chapters are available.
     Useful for exploring what data you have access to.
+    
+    Args:
+        base_path: Base path to corpus (local path or URL)
+        corpus_url: Optional URL override for remote corpus access
+        
+    Returns:
+        List of chapter paths
     """
-    rag = ChapterRAG()
+    rag = ChapterRAG(base_path=base_path, corpus_url=corpus_url)
     return rag.list_chapters()
 
 
-def list_available_chapters_with_titles() -> List[Tuple[str, str]]:
+def list_available_chapters_with_titles(base_path: str = "tests/ipcc", corpus_url: str = None) -> List[Tuple[str, str]]:
     """
     List all available IPCC chapters with their titles.
     
     STUDENT NOTE:
     This function returns both chapter paths and human-readable titles.
     Useful for creating better user interfaces.
+    
+    Args:
+        base_path: Base path to corpus (local path or URL)
+        corpus_url: Optional URL override for remote corpus access
+        
+    Returns:
+        List of (chapter_path, title) tuples
     """
-    rag = ChapterRAG()
+    rag = ChapterRAG(base_path=base_path, corpus_url=corpus_url)
     return rag.list_chapters_with_titles() 

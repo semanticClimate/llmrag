@@ -1,0 +1,166 @@
+digraph EnhancedRAGPipeline {
+    // Graph settings
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    
+    // Input sources
+    subgraph cluster_inputs {
+        label="Input Sources";
+        style=filled;
+        color=lightblue;
+        
+        HTML_FILE [label="IPCC HTML File\n(with paragraph IDs)", shape=cylinder, fillcolor=lightcyan];
+        USER_QUERY [label="User Question", shape=note, fillcolor=lightyellow];
+        CLI_CONFIG [label="CLI Configuration\n(model, device, etc.)", shape=note, fillcolor=lightyellow];
+    }
+    
+    // Ingestion Pipeline
+    subgraph cluster_ingestion {
+        label="Ingestion Pipeline (Cached)";
+        style=filled;
+        color=lightgreen;
+        
+        // Chunking
+        subgraph cluster_chunking {
+            label="1. Text Chunking";
+            style=filled;
+            color=lightcoral;
+            
+            HTML_SPLITTER [label="HTML Text Splitter\n(500 char chunks)", fillcolor=lightpink];
+            CHUNKS [label="Text Chunks\n+ Metadata", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Embedding
+        subgraph cluster_embedding {
+            label="2. Vector Embedding";
+            style=filled;
+            color=lightgoldenrod;
+            
+            SENTENCE_TRANSFORMERS [label="Sentence Transformers\n(all-MiniLM-L6-v2)", fillcolor=lightyellow];
+            EMBEDDINGS [label="Vector Embeddings\n(384 dimensions)", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Vector Store
+        subgraph cluster_vectorstore {
+            label="3. Vector Storage (Cached)";
+            style=filled;
+            color=lightsteelblue;
+            
+            CHROMA_DB [label="ChromaDB\nVector Database", fillcolor=lightblue];
+            COLLECTION [label="User Collection\n(ipcc_chapter_user)", shape=cylinder, fillcolor=lightcyan];
+            CACHE_CHECK [label="Cache Check\n(Skip if exists)", fillcolor=lightgreen];
+        }
+    }
+    
+    // Query Pipeline
+    subgraph cluster_query {
+        label="Query Pipeline";
+        style=filled;
+        color=lightcoral;
+        
+        // Query Processing
+        subgraph cluster_query_proc {
+            label="1. Query Processing";
+            style=filled;
+            color=lightpink;
+            
+            QUERY_EMBED [label="Query Embedding", fillcolor=lightpink];
+            SIMILARITY_SEARCH [label="Similarity Search\n(Top-k chunks)", fillcolor=lightpink];
+            RETRIEVED_CONTEXT [label="Retrieved Context\n+ Source IDs", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Answer Generation
+        subgraph cluster_generation {
+            label="2. Answer Generation";
+            style=filled;
+            color=lightgoldenrod;
+            
+            SCIENTIFIC_PROMPT [label="Scientific Prompt\n(IPCC Expert Role)", fillcolor=lightyellow];
+            LANGUAGE_MODEL [label="Language Model\n(gpt2-large)", fillcolor=lightyellow];
+            GENERATED_ANSWER [label="Generated Answer\n+ Sources", shape=note, fillcolor=lightyellow];
+        }
+    }
+    
+    // CLI Interface
+    subgraph cluster_cli {
+        label="CLI Development Interface";
+        style=filled;
+        color=lightgreen;
+        
+        CLI_COMMANDS [label="CLI Commands\n(list, load, ask, test)", fillcolor=lightgreen];
+        VECTOR_MANAGER [label="Vector Store Manager\n(status, cleanup, delete)", fillcolor=lightgreen];
+        PERFORMANCE_TEST [label="Performance Testing\n(caching, quality)", fillcolor=lightgreen];
+        BENCHMARK [label="Benchmarking\n(multi-chapter)", fillcolor=lightgreen];
+    }
+    
+    // Streamlit Interface
+    subgraph cluster_streamlit {
+        label="Streamlit Web Interface";
+        style=filled;
+        color=lightblue;
+        
+        WEB_UI [label="Web UI\n(Chapter selection, chat)", fillcolor=lightblue];
+        PROGRESS_BARS [label="Progress Tracking\n(Loading, querying)", fillcolor=lightblue];
+        SETTINGS_PANEL [label="Settings Panel\n(Model config, storage)", fillcolor=lightblue];
+    }
+    
+    // Vector Store Management
+    subgraph cluster_management {
+        label="Vector Store Management";
+        style=filled;
+        color=lightsteelblue;
+        
+        STORAGE_MONITOR [label="Storage Monitor\n(191MB, 10 collections)", fillcolor=lightblue];
+        COLLECTION_MANAGER [label="Collection Manager\n(List, inspect, cleanup)", fillcolor=lightblue];
+        CACHE_MANAGER [label="Cache Manager\n(Force re-ingest)", fillcolor=lightblue];
+    }
+    
+    // Connections - Ingestion
+    HTML_FILE -> CACHE_CHECK [label="check if exists"];
+    CACHE_CHECK -> HTML_SPLITTER [label="process if new"];
+    HTML_SPLITTER -> CHUNKS [label="chunked text"];
+    CHUNKS -> SENTENCE_TRANSFORMERS [label="generate embeddings"];
+    SENTENCE_TRANSFORMERS -> EMBEDDINGS [label="vector representations"];
+    EMBEDDINGS -> CHROMA_DB [label="store vectors"];
+    CHROMA_DB -> COLLECTION [label="user-specific"];
+    
+    // Connections - Query
+    USER_QUERY -> QUERY_EMBED [label="embed question"];
+    QUERY_EMBED -> SIMILARITY_SEARCH [label="search vectors"];
+    COLLECTION -> SIMILARITY_SEARCH [label="retrieve from"];
+    SIMILARITY_SEARCH -> RETRIEVED_CONTEXT [label="top-k results"];
+    RETRIEVED_CONTEXT -> SCIENTIFIC_PROMPT [label="format context"];
+    SCIENTIFIC_PROMPT -> LANGUAGE_MODEL [label="generate answer"];
+    LANGUAGE_MODEL -> GENERATED_ANSWER [label="scientific response"];
+    
+    // Connections - CLI
+    CLI_CONFIG -> CLI_COMMANDS [label="configure"];
+    CLI_COMMANDS -> VECTOR_MANAGER [label="manage"];
+    CLI_COMMANDS -> PERFORMANCE_TEST [label="test"];
+    CLI_COMMANDS -> BENCHMARK [label="benchmark"];
+    
+    // Connections - Management
+    COLLECTION -> STORAGE_MONITOR [label="monitor"];
+    STORAGE_MONITOR -> COLLECTION_MANAGER [label="manage"];
+    COLLECTION_MANAGER -> CACHE_MANAGER [label="control"];
+    CACHE_MANAGER -> CACHE_CHECK [label="force re-ingest"];
+    
+    // Connections - Web Interface
+    WEB_UI -> COLLECTION [label="load chapter"];
+    WEB_UI -> GENERATED_ANSWER [label="display answer"];
+    PROGRESS_BARS -> HTML_SPLITTER [label="track progress"];
+    PROGRESS_BARS -> LANGUAGE_MODEL [label="track progress"];
+    SETTINGS_PANEL -> CLI_CONFIG [label="configure"];
+    
+    // Performance indicators
+    edge [style=dashed, color=green, label="100% faster"];
+    CACHE_CHECK -> COLLECTION;
+    
+    edge [style=dashed, color=blue, label="scientific quality"];
+    SCIENTIFIC_PROMPT -> GENERATED_ANSWER;
+    
+    // Cache bypass
+    edge [style=dotted, color=red, label="force re-ingest"];
+    CACHE_MANAGER -> HTML_SPLITTER;
+} 

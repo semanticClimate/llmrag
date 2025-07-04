@@ -59,17 +59,17 @@ def setup_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,  # Preserves formatting in help text
         epilog="""
 Examples:
-  # List available chapters with titles
+  # List available chapters with titles (sorted bibliographically)
   python -m llmrag.cli list-chapters
   
   # Load a chapter for a user
-  python -m llmrag.cli load-chapter wg1/chapter04 --user-id alice
+  python -m llmrag.cli load-chapter wg1/chapter02 --user-id alice
   
   # Ask a question about a chapter
-  python -m llmrag.cli ask "What are the main findings about temperature trends?" --chapter wg1/chapter04 --user-id alice
+  python -m llmrag.cli ask "What are the main findings about temperature trends?" --chapter wg1/chapter02 --user-id alice
   
   # Interactive mode
-  python -m llmrag.cli interactive --chapter wg1/chapter04 --user-id alice
+  python -m llmrag.cli interactive --chapter wg1/chapter02 --user-id alice
   
   # Vector store management
   python -m llmrag.cli vector-store status
@@ -77,11 +77,11 @@ Examples:
   python -m llmrag.cli vector-store cleanup
   
   # Performance testing
-  python -m llmrag.cli test performance --chapter wg1/chapter04
-  python -m llmrag.cli test quality --chapter wg1/chapter04
+  python -m llmrag.cli test performance --chapter wg1/chapter02
+  python -m llmrag.cli test quality --chapter wg1/chapter02
   
   # Benchmarking
-  python -m llmrag.cli benchmark --chapters wg1/chapter04,wg1/chapter02
+  python -m llmrag.cli benchmark --chapters wg1/chapter02,wg1/chapter04
         """
     )
     
@@ -90,15 +90,19 @@ Examples:
     
     # Command 1: List chapters
     list_parser = subparsers.add_parser('list-chapters', help='List available IPCC chapters with titles')
-    list_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
-    list_parser.add_argument('--format', choices=['simple', 'detailed'], default='detailed', 
-                           help='Output format (simple: just paths, detailed: paths with titles)')
+    list_parser.add_argument('--base-path', default='tests/ipcc', 
+                           help='Base path to IPCC chapters (can be local path or URL)')
+    list_parser.add_argument('--format', choices=['simple', 'detailed', 'html'], default='detailed', 
+                           help='Output format (simple: just paths, detailed: paths with titles, html: with hyperlinks)')
+    list_parser.add_argument('--corpus-url', help='URL to corpus if using remote storage')
     
     # Command 2: Load chapter
     load_parser = subparsers.add_parser('load-chapter', help='Load a chapter for a user')
-    load_parser.add_argument('chapter', help='Chapter name (e.g., wg1/chapter04)')
+    load_parser.add_argument('chapter', help='Chapter name (e.g., wg1/chapter02)')
     load_parser.add_argument('--user-id', default='default', help='User identifier')
-    load_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
+    load_parser.add_argument('--base-path', default='tests/ipcc', 
+                           help='Base path to IPCC chapters (can be local path or URL)')
+    load_parser.add_argument('--corpus-url', help='URL to corpus if using remote storage')
     load_parser.add_argument('--model-name', default='gpt2-large', 
                            help='HuggingFace model name (default: gpt2-large)')
     load_parser.add_argument('--device', default='auto', 
@@ -108,22 +112,26 @@ Examples:
     # Command 3: Ask questions
     ask_parser = subparsers.add_parser('ask', help='Ask a question about a chapter')
     ask_parser.add_argument('question', help='Question to ask')
-    ask_parser.add_argument('--chapter', required=True, help='Chapter name (e.g., wg1/chapter04)')
+    ask_parser.add_argument('--chapter', required=True, help='Chapter name (e.g., wg1/chapter02)')
     ask_parser.add_argument('--user-id', default='default', help='User identifier')
-    ask_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
+    ask_parser.add_argument('--base-path', default='tests/ipcc', 
+                           help='Base path to IPCC chapters (can be local path or URL)')
+    ask_parser.add_argument('--corpus-url', help='URL to corpus if using remote storage')
     ask_parser.add_argument('--model-name', default='gpt2-large', 
                            help='HuggingFace model name (default: gpt2-large)')
     ask_parser.add_argument('--device', default='auto', 
                            help='Device to run model on (auto, cpu, mps, cuda) (default: auto)')
-    ask_parser.add_argument('--output-format', choices=['text', 'json'], default='text', help='Output format')
+    ask_parser.add_argument('--output-format', choices=['text', 'json', 'html'], default='text', help='Output format')
     ask_parser.add_argument('--show-context', action='store_true', help='Show retrieved context')
     ask_parser.add_argument('--show-sources', action='store_true', help='Show source paragraph IDs')
     
     # Command 4: Interactive mode
     interactive_parser = subparsers.add_parser('interactive', help='Start interactive mode')
-    interactive_parser.add_argument('--chapter', required=True, help='Chapter name (e.g., wg1/chapter04)')
+    interactive_parser.add_argument('--chapter', required=True, help='Chapter name (e.g., wg1/chapter02)')
     interactive_parser.add_argument('--user-id', default='default', help='User identifier')
-    interactive_parser.add_argument('--base-path', default='tests/ipcc', help='Base path to IPCC chapters')
+    interactive_parser.add_argument('--base-path', default='tests/ipcc', 
+                                   help='Base path to IPCC chapters (can be local path or URL)')
+    interactive_parser.add_argument('--corpus-url', help='URL to corpus if using remote storage')
     interactive_parser.add_argument('--model-name', default='gpt2-large',
                                    choices=['gpt2', 'gpt2-medium', 'gpt2-large', 'distilgpt2', 'microsoft/DialoGPT-medium'],
                                    help='HuggingFace model name (gpt2-large recommended for better quality)')
@@ -174,16 +182,17 @@ Examples:
     return parser
 
 
-def list_chapters(base_path: str, format_type: str = 'detailed') -> None:
+def list_chapters(base_path: str, format_type: str = 'detailed', corpus_url: str = None) -> None:
     """
-    List available chapters with titles.
+    List available chapters with titles and optional hyperlinks.
     
     STUDENT EXPLANATION:
     This function shows users what chapters (documents) are available in the system.
     It's like showing someone the library catalog so they can see what books are available.
     
     Now it also shows the actual titles of the chapters, making it much easier to
-    understand what each chapter is about.
+    understand what each chapter is about. It can also generate hyperlinks for
+    web-based access to the chapters.
     
     Error handling: If something goes wrong, we print an error message and exit gracefully.
     """
@@ -195,26 +204,46 @@ def list_chapters(base_path: str, format_type: str = 'detailed') -> None:
                 print("📚 Available IPCC Chapters:")
                 print()
                 for i, (chapter_path, title) in enumerate(chapters_with_titles, 1):
-                    print(f"  {i:2d}. {chapter_path}")
+                    # Create hyperlink to real IPCC URL
+                    from llmrag.chapter_rag import get_chapter_url
+                    chapter_url = get_chapter_url("", chapter_path)  # Empty string to trigger IPCC URL generation
+                    print(f"  {i:2d}. <a href='{chapter_url}'>{chapter_path}</a>")
                     print(f"      📖 {title}")
                     print()
             else:
-                print("❌ No chapters found. Make sure you have IPCC chapters in the tests/ipcc directory.")
+                print("❌ No chapters found. Check the base path and ensure chapters are available.")
+        elif format_type == 'html':
+            # HTML format with hyperlinks
+            chapters_with_titles = list_available_chapters_with_titles()
+            if chapters_with_titles:
+                print("<html><body>")
+                print("<h2>📚 Available IPCC Chapters</h2>")
+                print("<ul>")
+                for i, (chapter_path, title) in enumerate(chapters_with_titles, 1):
+                    from llmrag.chapter_rag import get_chapter_url
+                    chapter_url = get_chapter_url("", chapter_path)  # Empty string to trigger IPCC URL generation
+                    print(f"  <li><a href='{chapter_url}'>{chapter_path}</a> - {title}</li>")
+                print("</ul>")
+                print("</body></html>")
+            else:
+                print("❌ No chapters found. Check the base path and ensure chapters are available.")
         else:
-            # Simple format (just paths)
+            # Simple format
             chapters = list_available_chapters()
             if chapters:
                 print("📚 Available IPCC Chapters:")
                 for chapter in chapters:
-                    print(f"  • {chapter}")
+                    from llmrag.chapter_rag import get_chapter_url
+                    chapter_url = get_chapter_url("", chapter)  # Empty string to trigger IPCC URL generation
+                    print(f"  • <a href='{chapter_url}'>{chapter}</a>")
             else:
-                print("❌ No chapters found. Make sure you have IPCC chapters in the tests/ipcc directory.")
+                print("❌ No chapters found. Check the base path and ensure chapters are available.")
     except Exception as e:
         print(f"❌ Error listing chapters: {e}")
         sys.exit(1)  # Exit with error code 1 (indicating failure)
 
 
-def load_chapter_command(chapter: str, user_id: str, base_path: str, model_name: str, device: str, force: bool = False) -> None:
+def load_chapter_command(chapter: str, user_id: str, base_path: str, model_name: str, device: str, force: bool = False, corpus_url: str = None) -> None:
     """
     Load a chapter for a user.
     
@@ -235,7 +264,7 @@ def load_chapter_command(chapter: str, user_id: str, base_path: str, model_name:
         start_time = time.time()
         
         # Create a RAG system and load the chapter
-        rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device)
+        rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device, corpus_url=corpus_url)
         rag.load_chapter(chapter, user_id)
         
         load_time = time.time() - start_time
@@ -246,7 +275,7 @@ def load_chapter_command(chapter: str, user_id: str, base_path: str, model_name:
 
 
 def ask_command(question: str, chapter: str, user_id: str, base_path: str, model_name: str, device: str, 
-                output_format: str, show_context: bool = False, show_sources: bool = False) -> None:
+                output_format: str, show_context: bool = False, show_sources: bool = False, corpus_url: str = None) -> None:
     """
     Ask a question about a chapter.
     
@@ -269,7 +298,7 @@ def ask_command(question: str, chapter: str, user_id: str, base_path: str, model
         start_time = time.time()
         
         # Create RAG system and ask the question
-        rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device)
+        rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device, corpus_url=corpus_url)
         result = rag.ask(question, chapter, user_id)
         
         response_time = time.time() - start_time
@@ -504,7 +533,7 @@ def benchmark_chapters(chapters: str, model_name: str, output_file: str = None) 
         print(f"📄 Results saved to {output_file}")
 
 
-def interactive_mode(chapter: str, user_id: str, base_path: str, model_name: str, device: str) -> None:
+def interactive_mode(chapter: str, user_id: str, base_path: str, model_name: str, device: str, corpus_url: str = None) -> None:
     """
     Start interactive mode for conversation with the RAG system.
     
@@ -533,7 +562,7 @@ def interactive_mode(chapter: str, user_id: str, base_path: str, model_name: str
         print("=" * 60)
         
         # Create RAG system and load chapter
-        rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device)
+        rag = ChapterRAG(base_path=base_path, model_name=model_name, device=device, corpus_url=corpus_url)
         rag.load_chapter(chapter, user_id)
         
         # Track conversation
@@ -629,20 +658,20 @@ def main():
     try:
         # Route to the appropriate function based on the command
         if args.command == 'list-chapters':
-            list_chapters(args.base_path, args.format)
+            list_chapters(args.base_path, args.format, args.corpus_url)
             
         elif args.command == 'load-chapter':
             load_chapter_command(args.chapter, args.user_id, args.base_path, 
-                               args.model_name, args.device, args.force)
+                               args.model_name, args.device, args.force, args.corpus_url)
             
         elif args.command == 'ask':
             ask_command(args.question, args.chapter, args.user_id, args.base_path,
                        args.model_name, args.device, args.output_format, 
-                       args.show_context, args.show_sources)
+                       args.show_context, args.show_sources, args.corpus_url)
             
         elif args.command == 'interactive':
             interactive_mode(args.chapter, args.user_id, args.base_path,
-                           args.model_name, args.device)
+                           args.model_name, args.device, args.corpus_url)
             
         elif args.command == 'vector-store':
             if args.vector_command == 'status':

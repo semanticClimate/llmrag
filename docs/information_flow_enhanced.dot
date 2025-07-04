@@ -1,0 +1,142 @@
+digraph Information_Flow_Enhanced {
+    // Graph settings
+    rankdir=LR;
+    node [shape=box, style=filled, fontname="Arial", fontsize=9];
+    edge [fontname="Arial", fontsize=8];
+    
+    // Process steps
+    subgraph cluster_ingestion {
+        label="1. Document Ingestion (Cached)";
+        style=filled;
+        color=lightblue;
+        
+        HTML_File [label="IPCC HTML File\nwith paragraph IDs", shape=folder, fillcolor=lightcyan];
+        Cache_Check [label="Cache Check\n(Skip if exists)", fillcolor=lightgreen];
+        Parse_HTML [label="Parse HTML\n(lxml)", fillcolor=lightblue];
+        Extract_Text [label="Extract Text\nfrom h1-h6, p tags", fillcolor=lightblue];
+        Create_Chunks [label="Create Chunks\nwith metadata", fillcolor=lightblue];
+    }
+    
+    subgraph cluster_embedding {
+        label="2. Vector Embedding";
+        style=filled;
+        color=lightgreen;
+        
+        Text_Chunks [label="Text Chunks\n+ Paragraph IDs", fillcolor=lightgreen];
+        Sentence_Transformers [label="Sentence Transformers\n(all-MiniLM-L6-v2)", fillcolor=lightgreen];
+        Vector_Embeddings [label="Vector Embeddings\n(384 dimensions)", fillcolor=lightgreen];
+    }
+    
+    subgraph cluster_storage {
+        label="3. Vector Storage (Persistent)";
+        style=filled;
+        color=lightyellow;
+        
+        ChromaDB [label="ChromaDB\nVector Database", fillcolor=lightyellow];
+        User_Collection [label="User-Specific\nCollection", fillcolor=lightyellow];
+        Metadata_Store [label="Store Metadata\n(paragraph IDs, types)", fillcolor=lightyellow];
+        Cache_Manager [label="Cache Manager\n(Force re-ingest)", fillcolor=lightgreen];
+    }
+    
+    subgraph cluster_query {
+        label="4. Query Processing";
+        style=filled;
+        color=lightcoral;
+        
+        User_Question [label="User Question", shape=note, fillcolor=lightcoral];
+        Question_Embedding [label="Question Embedding", fillcolor=lightcoral];
+        Similarity_Search [label="Similarity Search\n(Top-k chunks)", fillcolor=lightcoral];
+        Retrieved_Context [label="Retrieved Context\n+ Source IDs", fillcolor=lightcoral];
+    }
+    
+    subgraph cluster_generation {
+        label="5. Answer Generation (Enhanced)";
+        style=filled;
+        color=lightpink;
+        
+        Scientific_Prompt [label="Scientific Prompt\n(IPCC Expert Role)", fillcolor=lightpink];
+        Language_Model [label="Language Model\n(gpt2-large)", fillcolor=lightpink];
+        Generated_Answer [label="Generated Answer\n+ Sources", shape=note, fillcolor=lightpink];
+        Quality_Check [label="Quality Validation\n(Scientific accuracy)", fillcolor=lightpink];
+    }
+    
+    subgraph cluster_interfaces {
+        label="6. User Interfaces";
+        style=filled;
+        color=lightgoldenrod;
+        
+        Streamlit_UI [label="Streamlit Web UI\n(Chapter selection, chat)", fillcolor=lightgoldenrod];
+        CLI_Interface [label="CLI Development\n(list, load, ask, test)", fillcolor=lightgoldenrod];
+        Vector_Manager [label="Vector Store Manager\n(status, cleanup, delete)", fillcolor=lightgoldenrod];
+        Performance_Tools [label="Performance Tools\n(caching, quality, benchmark)", fillcolor=lightgoldenrod];
+    }
+    
+    subgraph cluster_output {
+        label="7. Response Delivery";
+        style=filled;
+        color=lightsteelblue;
+        
+        Final_Answer [label="Final Answer\nwith Sources", shape=note, fillcolor=lightsteelblue];
+        Chat_History [label="Store in\nChat History", fillcolor=lightsteelblue];
+        Export_Data [label="Export to JSON\n(CLI automation)", fillcolor=lightsteelblue];
+        Progress_Tracking [label="Progress Tracking\n(Loading, querying)", fillcolor=lightsteelblue];
+    }
+    
+    // Flow connections - Ingestion
+    HTML_File -> Cache_Check [label="check if exists"];
+    Cache_Check -> Parse_HTML [label="process if new"];
+    Parse_HTML -> Extract_Text [label="DOM Tree"];
+    Extract_Text -> Create_Chunks [label="Text Elements"];
+    Create_Chunks -> Text_Chunks [label="Chunked Text"];
+    
+    // Flow connections - Embedding
+    Text_Chunks -> Sentence_Transformers [label="Text Input"];
+    Sentence_Transformers -> Vector_Embeddings [label="Embeddings"];
+    Vector_Embeddings -> ChromaDB [label="Store Vectors"];
+    ChromaDB -> User_Collection [label="User Isolation"];
+    User_Collection -> Metadata_Store [label="Store Metadata"];
+    
+    // Flow connections - Query
+    User_Question -> Question_Embedding [label="Embed Question"];
+    Question_Embedding -> Similarity_Search [label="Search Vectors"];
+    Similarity_Search -> Retrieved_Context [label="Top-k Results"];
+    Retrieved_Context -> Scientific_Prompt [label="Context + Question"];
+    
+    // Flow connections - Generation
+    Scientific_Prompt -> Language_Model [label="Generate Answer"];
+    Language_Model -> Generated_Answer [label="AI Response"];
+    Generated_Answer -> Quality_Check [label="Validate Quality"];
+    Quality_Check -> Final_Answer [label="Quality Assured"];
+    
+    // Flow connections - Interfaces
+    Streamlit_UI -> User_Collection [label="load chapter"];
+    CLI_Interface -> User_Collection [label="load chapter"];
+    Vector_Manager -> ChromaDB [label="manage collections"];
+    Performance_Tools -> Cache_Check [label="test caching"];
+    Performance_Tools -> Quality_Check [label="test quality"];
+    
+    // Flow connections - Output
+    Final_Answer -> Chat_History [label="Store History"];
+    Final_Answer -> Export_Data [label="JSON Export"];
+    Progress_Tracking -> Create_Chunks [label="track progress"];
+    Progress_Tracking -> Language_Model [label="track progress"];
+    
+    // Cache management
+    Cache_Manager -> Cache_Check [label="force re-ingest"];
+    Cache_Manager -> ChromaDB [label="cleanup old"];
+    
+    // Performance indicators
+    edge [style=dashed, color=green, label="100% faster"];
+    Cache_Check -> User_Collection;
+    
+    edge [style=dashed, color=blue, label="scientific quality"];
+    Scientific_Prompt -> Generated_Answer;
+    
+    // Cache bypass
+    edge [style=dotted, color=red, label="force re-ingest"];
+    Cache_Manager -> Parse_HTML;
+    
+    // Storage monitoring
+    edge [style=dashed, color=orange, label="191MB, 10 collections"];
+    ChromaDB -> Vector_Manager;
+} 

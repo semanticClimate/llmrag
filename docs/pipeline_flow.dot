@@ -63,19 +63,40 @@ digraph IPCCPipeline {
             STRUCT_OUT [label="Structured HTML\nwith Paragraph IDs", shape=cylinder, fillcolor=lightcyan];
         }
         
-        // Stage 4: Chunk (stub)
+        // Stage 4: Chunk (Enhanced)
         subgraph cluster_chunk {
-            label="4. Chunk Stage (Stub)";
+            label="4. Chunk Stage (Enhanced)";
             style=filled;
-            color=lightgray;
+            color=lightgreen;
             
-            CHUNK_ALGO [label="Semantic Chunking\nAlgorithm", fillcolor=gainsboro];
+            HTML_SPLITTER [label="HTML Text Splitter\n(500 char chunks)", fillcolor=lightgreen];
             CHUNK_OUT [label="RAG Chunks\nwith IDs", shape=cylinder, fillcolor=lightcyan];
         }
         
-        // Stage 5: Dictionary (stub)
+        // Stage 5: Embed (New)
+        subgraph cluster_embed {
+            label="5. Embed Stage (New)";
+            style=filled;
+            color=lightcoral;
+            
+            SENTENCE_TRANSFORMERS [label="Sentence Transformers\n(all-MiniLM-L6-v2)", fillcolor=lightpink];
+            EMBEDDINGS_OUT [label="Vector Embeddings\n(384 dimensions)", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 6: Store (New)
+        subgraph cluster_store {
+            label="6. Store Stage (New)";
+            style=filled;
+            color=lightgoldenrod;
+            
+            CHROMA_DB [label="ChromaDB\nVector Database", fillcolor=lightyellow];
+            CACHE_CHECK [label="Cache Check\n(Skip if exists)", fillcolor=lightgreen];
+            USER_COLLECTION [label="User Collection\n(ipcc_chapter_user)", shape=cylinder, fillcolor=lightcyan];
+        }
+        
+        // Stage 7: Dictionary (stub)
         subgraph cluster_dict {
-            label="5. Dictionary Stage (Stub)";
+            label="7. Dictionary Stage (Stub)";
             style=filled;
             color=lightgray;
             
@@ -83,9 +104,9 @@ digraph IPCCPipeline {
             DICT_OUT [label="Chapter Dictionary", shape=cylinder, fillcolor=lightcyan];
         }
         
-        // Stage 6: Encyclopedia (stub)
+        // Stage 8: Encyclopedia (stub)
         subgraph cluster_encyc {
-            label="6. Encyclopedia Stage (Stub)";
+            label="8. Encyclopedia Stage (Stub)";
             style=filled;
             color=lightgray;
             
@@ -93,6 +114,32 @@ digraph IPCCPipeline {
             IMAGE_DOWNLOAD [label="Image Download", fillcolor=gainsboro];
             ENC_OUT [label="Mini Encyclopedia", shape=cylinder, fillcolor=lightcyan];
         }
+    }
+    
+    // RAG Query Pipeline (New)
+    subgraph cluster_rag {
+        label="RAG Query Pipeline (New)";
+        style=filled;
+        color=lightblue;
+        
+        USER_QUERY [label="User Question", shape=note, fillcolor=lightblue];
+        QUERY_EMBED [label="Query Embedding", fillcolor=lightblue];
+        SIMILARITY_SEARCH [label="Similarity Search\n(Top-k chunks)", fillcolor=lightblue];
+        SCIENTIFIC_PROMPT [label="Scientific Prompt\n(IPCC Expert Role)", fillcolor=lightblue];
+        LANGUAGE_MODEL [label="Language Model\n(gpt2-large)", fillcolor=lightblue];
+        GENERATED_ANSWER [label="Generated Answer\n+ Sources", shape=note, fillcolor=lightblue];
+    }
+    
+    // CLI Interface (New)
+    subgraph cluster_cli {
+        label="CLI Development Interface (New)";
+        style=filled;
+        color=lightgreen;
+        
+        CLI_COMMANDS [label="CLI Commands\n(list, load, ask, test)", fillcolor=lightgreen];
+        VECTOR_MANAGER [label="Vector Store Manager\n(status, cleanup, delete)", fillcolor=lightgreen];
+        PERFORMANCE_TEST [label="Performance Testing\n(caching, quality)", fillcolor=lightgreen];
+        BENCHMARK [label="Benchmarking\n(multi-chapter)", fillcolor=lightgreen];
     }
     
     // Quality checks
@@ -105,6 +152,7 @@ digraph IPCCPipeline {
         QC_PARAGRAPHS [label="Paragraph Count\nCheck", fillcolor=lightpink];
         QC_TITLE [label="Title Match\nCheck", fillcolor=lightpink];
         QC_IDS [label="ID Coverage\nCheck", fillcolor=lightpink];
+        QC_SCIENTIFIC [label="Scientific Quality\nCheck", fillcolor=lightpink];
     }
     
     // Output formats
@@ -117,6 +165,7 @@ digraph IPCCPipeline {
         JSON_OUT [label="JSON Output\n(data.json)", shape=note, fillcolor=lightyellow];
         MD_OUT [label="Markdown Output\n(content.md)", shape=note, fillcolor=lightyellow];
         YAML_OUT [label="YAML Output\n(metadata.yaml)", shape=note, fillcolor=lightyellow];
+        VECTOR_OUT [label="Vector Store\n(Ready for RAG)", shape=cylinder, fillcolor=lightcyan];
     }
     
     // Error handling
@@ -156,8 +205,15 @@ digraph IPCCPipeline {
     PRESERVE_STRUCT -> STRUCT_OUT [label="structured"];
     
     // Chunk stage connections
-    STRUCT_OUT -> CHUNK_ALGO [label="structured HTML"];
-    CHUNK_ALGO -> CHUNK_OUT [label="chunks"];
+    STRUCT_OUT -> CACHE_CHECK [label="check if exists"];
+    CACHE_CHECK -> HTML_SPLITTER [label="process if new"];
+    HTML_SPLITTER -> CHUNK_OUT [label="chunks"];
+    
+    // Embed stage connections
+    CHUNK_OUT -> SENTENCE_TRANSFORMERS [label="generate embeddings"];
+    SENTENCE_TRANSFORMERS -> EMBEDDINGS_OUT [label="vector representations"];
+    EMBEDDINGS_OUT -> CHROMA_DB [label="store vectors"];
+    CHROMA_DB -> USER_COLLECTION [label="user-specific"];
     
     // Dictionary stage connections
     STRUCT_OUT -> DICT_EXTRACT [label="structured HTML"];
@@ -168,11 +224,26 @@ digraph IPCCPipeline {
     WIKI_LOOKUP -> IMAGE_DOWNLOAD [label="definitions"];
     IMAGE_DOWNLOAD -> ENC_OUT [label="with images"];
     
+    // RAG Query connections
+    USER_QUERY -> QUERY_EMBED [label="embed question"];
+    QUERY_EMBED -> SIMILARITY_SEARCH [label="search vectors"];
+    USER_COLLECTION -> SIMILARITY_SEARCH [label="retrieve from"];
+    SIMILARITY_SEARCH -> SCIENTIFIC_PROMPT [label="format context"];
+    SCIENTIFIC_PROMPT -> LANGUAGE_MODEL [label="generate answer"];
+    LANGUAGE_MODEL -> GENERATED_ANSWER [label="scientific response"];
+    
+    // CLI connections
+    CLI_COMMANDS -> USER_COLLECTION [label="load chapter"];
+    CLI_COMMANDS -> VECTOR_MANAGER [label="manage"];
+    CLI_COMMANDS -> PERFORMANCE_TEST [label="test"];
+    CLI_COMMANDS -> BENCHMARK [label="benchmark"];
+    
     // Quality check connections
     STRUCT_OUT -> QC_LENGTH [label="check"];
     STRUCT_OUT -> QC_PARAGRAPHS [label="check"];
     STRUCT_OUT -> QC_TITLE [label="check"];
     STRUCT_OUT -> QC_IDS [label="check"];
+    GENERATED_ANSWER -> QC_SCIENTIFIC [label="check"];
     
     // Output connections
     STRUCT_OUT -> HTML_OUT [label="export"];
@@ -181,6 +252,7 @@ digraph IPCCPipeline {
     ENC_OUT -> JSON_OUT [label="export"];
     STRUCT_OUT -> MD_OUT [label="export"];
     STRUCT_OUT -> YAML_OUT [label="export"];
+    USER_COLLECTION -> VECTOR_OUT [label="export"];
     
     // Error handling connections
     SELENIUM -> LOG_ERRORS [label="on error"];
@@ -194,6 +266,15 @@ digraph IPCCPipeline {
     DOWNLOAD_OUT -> CLEAN_OUT [label="depends on"];
     CLEAN_OUT -> STRUCT_OUT [label="depends on"];
     STRUCT_OUT -> CHUNK_OUT [label="depends on"];
+    CHUNK_OUT -> EMBEDDINGS_OUT [label="depends on"];
+    EMBEDDINGS_OUT -> USER_COLLECTION [label="depends on"];
     STRUCT_OUT -> DICT_OUT [label="depends on"];
     DICT_OUT -> ENC_OUT [label="depends on"];
+    
+    // Performance indicators
+    edge [style=dashed, color=green, label="100% faster"];
+    CACHE_CHECK -> USER_COLLECTION;
+    
+    edge [style=dashed, color=blue, label="scientific quality"];
+    SCIENTIFIC_PROMPT -> GENERATED_ANSWER;
 } 

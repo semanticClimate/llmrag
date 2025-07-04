@@ -47,6 +47,37 @@ digraph IPCCPipelineCore {
         FINAL_HTML [label="Final HTML\nwith Paragraph IDs", shape=cylinder, fillcolor=lightcyan];
     }
     
+    // Stage 4: Chunk (Enhanced)
+    subgraph cluster_chunk {
+        label="Stage 4: Chunk (Enhanced)";
+        style=filled;
+        color=lightgreen;
+        
+        HTML_SPLITTER [label="HTML Text Splitter\n(500 char chunks)", fillcolor=lightgreen];
+        TEXT_CHUNKS [label="Text Chunks\n+ Metadata", shape=cylinder, fillcolor=lightcyan];
+    }
+    
+    // Stage 5: Embed (New)
+    subgraph cluster_embed {
+        label="Stage 5: Embed (New)";
+        style=filled;
+        color=lightcoral;
+        
+        SENTENCE_TRANSFORMERS [label="Sentence Transformers\n(all-MiniLM-L6-v2)", fillcolor=lightpink];
+        VECTOR_EMBEDDINGS [label="Vector Embeddings\n(384 dimensions)", shape=cylinder, fillcolor=lightcyan];
+    }
+    
+    // Stage 6: Store (New)
+    subgraph cluster_store {
+        label="Stage 6: Store (New)";
+        style=filled;
+        color=lightgoldenrod;
+        
+        CHROMA_DB [label="ChromaDB\nVector Database", fillcolor=lightyellow];
+        USER_COLLECTION [label="User Collection\n(ipcc_chapter_user)", shape=cylinder, fillcolor=lightcyan];
+        CACHE_CHECK [label="Cache Check\n(Skip if exists)", fillcolor=lightgreen];
+    }
+    
     // Output
     subgraph cluster_output {
         label="Output";
@@ -56,6 +87,7 @@ digraph IPCCPipelineCore {
         HTML_OUT [label="HTML File\n(processed.html)", shape=note, fillcolor=lightyellow];
         JSON_OUT [label="JSON File\n(metadata.json)", shape=note, fillcolor=lightyellow];
         MD_OUT [label="Markdown File\n(content.md)", shape=note, fillcolor=lightyellow];
+        VECTOR_OUT [label="Vector Store\n(Ready for RAG)", shape=cylinder, fillcolor=lightcyan];
     }
     
     // Connections
@@ -75,12 +107,30 @@ digraph IPCCPipelineCore {
     ID_GEN -> ADD_IDS [label="add IDs"];
     ADD_IDS -> FINAL_HTML [label="structured"];
     
+    // New RAG connections
+    FINAL_HTML -> CACHE_CHECK [label="check if exists"];
+    CACHE_CHECK -> HTML_SPLITTER [label="process if new"];
+    HTML_SPLITTER -> TEXT_CHUNKS [label="chunked text"];
+    TEXT_CHUNKS -> SENTENCE_TRANSFORMERS [label="generate embeddings"];
+    SENTENCE_TRANSFORMERS -> VECTOR_EMBEDDINGS [label="vector representations"];
+    VECTOR_EMBEDDINGS -> CHROMA_DB [label="store vectors"];
+    CHROMA_DB -> USER_COLLECTION [label="user-specific"];
+    
+    // Output connections
     FINAL_HTML -> HTML_OUT [label="export"];
     FINAL_HTML -> JSON_OUT [label="export"];
     FINAL_HTML -> MD_OUT [label="export"];
+    USER_COLLECTION -> VECTOR_OUT [label="export"];
     
     // Stage dependencies
     edge [style=dashed, color=gray, label="depends on"];
     RAW_HTML -> CLEAN_HTML;
     CLEAN_HTML -> FINAL_HTML;
+    FINAL_HTML -> TEXT_CHUNKS;
+    TEXT_CHUNKS -> VECTOR_EMBEDDINGS;
+    VECTOR_EMBEDDINGS -> USER_COLLECTION;
+    
+    // Performance indicators
+    edge [style=dashed, color=green, label="100% faster"];
+    CACHE_CHECK -> USER_COLLECTION;
 } 

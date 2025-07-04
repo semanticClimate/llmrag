@@ -39,7 +39,12 @@ class RAGPipeline:
                 - context: List of retrieved documents
                 - paragraph_ids: List of unique paragraph IDs from the context documents
         """
-        documents = self.vector_store.retrieve(query, top_k=top_k)
+        # Check if this is an Executive Summary query
+        if self._is_executive_summary_query(query):
+            # Use fewer documents and focus on executive summary content
+            documents = self.vector_store.retrieve(query + " executive summary", top_k=2)
+        else:
+            documents = self.vector_store.retrieve(query, top_k=top_k)
 
         # Deduplicate context to reduce redundancy
         seen = set()
@@ -57,6 +62,9 @@ class RAGPipeline:
         if section_match:
             # Use a focused prompt for section queries
             prompt = self._create_section_prompt(context, query, section_match)
+        elif self._is_executive_summary_query(query):
+            # Use a focused prompt for executive summary queries
+            prompt = self._create_executive_summary_prompt(context, query)
         else:
             # Use the enhanced scientific prompt for general queries
             prompt = self._create_scientific_prompt(context, query)
@@ -85,24 +93,23 @@ class RAGPipeline:
         """
         Create a sophisticated prompt optimized for scientific IPCC content.
         """
-        return f"""You are a climate science expert analyzing IPCC (Intergovernmental Panel on Climate Change) reports. 
-Your task is to provide accurate, evidence-based answers using ONLY the provided context from IPCC chapters.
+        return f"""You are a climate science expert analyzing IPCC reports. Provide accurate, evidence-based answers using ONLY the provided context.
 
-CRITICAL GUIDELINES:
-1. **Base your answer ONLY on the provided context** - do not use external knowledge
-2. **Be precise and scientific** - use technical terminology appropriate for climate science
-3. **Cite specific data and findings** when available in the context
-4. **Acknowledge uncertainty** - IPCC reports often discuss confidence levels and uncertainty ranges
-5. **If the context is insufficient**, say "Based on the provided context, I cannot provide a complete answer"
-6. **Structure your response clearly** with key points and supporting evidence
-7. **Avoid generic statements** - be specific about what the IPCC report actually states
+Guidelines:
+- Base your answer ONLY on the provided context
+- Be precise and scientific with technical terminology
+- Cite specific data and findings when available
+- Acknowledge uncertainty and confidence levels
+- If context is insufficient, say so clearly
+- Structure your response with key points and evidence
+- Be specific about what the IPCC report actually states
 
-CONTEXT FROM IPCC REPORT:
+Context:
 {context}
 
-QUESTION: {query}
+Question: {query}
 
-ANSWER:"""
+Answer:"""
 
     def _create_section_prompt(self, context: str, query: str, section_number: str) -> str:
         """
@@ -140,6 +147,30 @@ ANSWER:"""
             return match.group(1)
         
         return None
+
+    def _is_executive_summary_query(self, query: str) -> bool:
+        """
+        Check if the query is asking about the Executive Summary.
+        """
+        executive_summary_keywords = [
+            'executive summary', 'summary', 'overview', 'main findings',
+            'key conclusions', 'main conclusions', 'summary of findings'
+        ]
+        query_lower = query.lower()
+        return any(keyword in query_lower for keyword in executive_summary_keywords)
+
+    def _create_executive_summary_prompt(self, context: str, query: str) -> str:
+        """
+        Create a focused prompt for Executive Summary queries.
+        """
+        return f"""Based on the following context from an IPCC chapter, answer the question about the Executive Summary or main findings.
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
 
     def query(self, question: str, top_k=4, temperature=0.3) -> str:
         """
