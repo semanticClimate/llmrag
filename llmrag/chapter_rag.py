@@ -283,9 +283,12 @@ class ChapterRAG:
         """
         chapters = []
         if self.base_path.exists():
-            # Look for chapter directories (like wg1/chapter04)
-            for chapter_dir in self.base_path.glob("wg*/chapter*"):
-                chapters.append(str(chapter_dir.relative_to(self.base_path)))
+            # Look for chapter directories (both "chapter" and "Chapter")
+            for working_group in self.base_path.glob("wg*"):
+                if working_group.is_dir():
+                    for chapter_dir in working_group.iterdir():
+                        if chapter_dir.is_dir() and chapter_dir.name.lower().startswith("chapter"):
+                            chapters.append(str(chapter_dir.relative_to(self.base_path)))
         return sorted(chapters)
     
     def list_chapters_with_titles(self) -> List[Tuple[str, str]]:
@@ -302,17 +305,21 @@ class ChapterRAG:
         chapters_with_titles = []
         
         if self.base_path.exists():
-            for chapter_dir in self.base_path.glob("wg*/chapter*"):
-                chapter_path = str(chapter_dir.relative_to(self.base_path))
-                
-                # Find HTML file to extract title
-                html_files = list(chapter_dir.glob("*.html"))
-                if html_files:
-                    title = self._extract_chapter_title(html_files[0])
-                else:
-                    title = f"Chapter {chapter_path.split('/')[-1]}"
-                
-                chapters_with_titles.append((chapter_path, title))
+            # Look for chapter directories (both "chapter" and "Chapter")
+            for working_group in self.base_path.glob("wg*"):
+                if working_group.is_dir():
+                    for chapter_dir in working_group.iterdir():
+                        if chapter_dir.is_dir() and chapter_dir.name.lower().startswith("chapter"):
+                            chapter_path = str(chapter_dir.relative_to(self.base_path))
+                            
+                            # Find HTML file to extract title
+                            html_files = list(chapter_dir.glob("*.html"))
+                            if html_files:
+                                title = self._extract_chapter_title(html_files[0])
+                            else:
+                                title = f"Chapter {chapter_path.split('/')[-1]}"
+                            
+                            chapters_with_titles.append((chapter_path, title))
         
         return sorted(chapters_with_titles)
 
