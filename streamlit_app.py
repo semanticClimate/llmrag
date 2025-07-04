@@ -31,6 +31,7 @@ import os
 
 # Import our main RAG system
 from llmrag.chapter_rag import ChapterRAG, list_available_chapters, list_available_chapters_with_titles
+from llmrag.utils.vector_store_manager import VectorStoreManager, print_vector_store_status
 
 
 def get_chapter_size(chapter_path: str) -> str:
@@ -447,100 +448,104 @@ def settings_interface():
     
     This is like a "user preferences" or "account settings" page in other apps.
     """
-    st.header("⚙️ Settings & Info")
+    st.header("⚙️ Settings & System Info")
     
-    # System information display
+    # System Information
     st.subheader("System Information")
-    
-    # Get chapter title for display
-    if st.session_state.current_chapter:
-        try:
-            chapters_with_titles = list_available_chapters_with_titles()
-            chapter_title = None
-            for path, title in chapters_with_titles:
-                if path == st.session_state.current_chapter:
-                    chapter_title = title
-                    break
-        except:
-            chapter_title = st.session_state.current_chapter
-        
-        st.write(f"**Current Chapter:** {chapter_title or st.session_state.current_chapter}")
-        st.write(f"**User ID:** {st.session_state.current_user}")
-        st.write(f"**Model:** {st.session_state.model_name}")
-        st.write(f"**Device:** {st.session_state.device}")
-        
-        # Show chapter size
-        chapter_size = get_chapter_size(st.session_state.current_chapter)
-        st.write(f"**Chapter Size:** {chapter_size}")
-        
-        # Show chat history count
-        st.write(f"**Chat Messages:** {len(st.session_state.chat_history)}")
-    else:
-        st.write("No chapter loaded.")
-    
-    # Session management
-    st.subheader("Session Management")
-    
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("🗑️ Clear Chat History"):
+        st.metric("Python Version", "3.12+")
+        st.metric("Framework", "LLM-RAG")
+    
+    with col2:
+        st.metric("Model", st.session_state.get('model_name', 'gpt2-large'))
+        st.metric("Device", st.session_state.get('device', 'auto'))
+    
+    # Vector Store Management
+    st.subheader("📚 Vector Store Management")
+    
+    manager = VectorStoreManager()
+    storage_info = manager.get_storage_info()
+    
+    if storage_info["exists"]:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Storage Size", f"{storage_info['size_mb']} MB")
+        with col2:
+            st.metric("Collections", storage_info['collections'])
+        with col3:
+            st.metric("Total Documents", storage_info['total_documents'])
+        
+        # Show collections
+        collections = manager.list_collections()
+        if collections:
+            st.write("**Cached Collections:**")
+            for coll in collections:
+                st.write(f"• {coll['name']}: {coll['count']} documents")
+            
+            # Cleanup options
+            st.write("**Storage Management:**")
+            if st.button("🗑️ Clear All Cached Data", type="secondary"):
+                deleted_count = 0
+                for coll in collections:
+                    if manager.delete_collection(coll['name']):
+                        deleted_count += 1
+                st.success(f"Deleted {deleted_count} collections")
+                st.rerun()
+        else:
+            st.info("No collections found")
+    else:
+        st.info("No vector store found. Chapters will be processed on first load.")
+    
+    # Session Management
+    st.subheader("🔄 Session Management")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🔄 Reset Session", type="secondary"):
+            st.session_state.clear()
+            st.success("Session reset successfully!")
+            st.rerun()
+    
+    with col2:
+        if st.button("🗑️ Clear Chat History", type="secondary"):
             st.session_state.chat_history = []
             st.success("Chat history cleared!")
             st.rerun()
     
-    with col2:
-        if st.button("🔄 Reset Session"):
-            st.session_state.rag_system = None
-            st.session_state.current_chapter = None
-            st.session_state.current_user = None
-            st.session_state.chat_history = []
-            st.success("Session reset! Please load a chapter again.")
-            st.rerun()
+    # Model Configuration
+    st.subheader("🤖 Model Configuration")
     
-    # Export functionality
-    st.subheader("Export Data")
+    model_name = st.selectbox(
+        "Model",
+        ["gpt2-large", "gpt2-medium", "gpt2"],
+        index=0,
+        help="Larger models provide better quality but use more memory"
+    )
     
-    if st.session_state.chat_history:
-        # Convert chat history to JSON
-        export_data = {
-            "chapter": st.session_state.current_chapter,
-            "user_id": st.session_state.current_user,
-            "model": st.session_state.model_name,
-            "device": st.session_state.device,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "chat_history": [
-                {
-                    "question": q,
-                    "answer": a,
-                    "metadata": m
-                }
-                for q, a, m in st.session_state.chat_history
-            ]
-        }
-        
-        # Create download button
-        st.download_button(
-            label="📥 Download Chat History (JSON)",
-            data=json.dumps(export_data, indent=2),
-            file_name=f"llmrag_chat_{st.session_state.current_chapter.replace('/', '_')}_{st.session_state.current_user}_{time.strftime('%Y%m%d_%H%M%S')}.json",
-            mime="application/json"
-        )
-    else:
-        st.write("No chat history to export.")
+    device = st.selectbox(
+        "Device",
+        ["auto", "cpu", "cuda", "mps"],
+        index=0,
+        help="Device to run the model on"
+    )
     
-    # Chapter information
-    st.subheader("Available Chapters")
-    try:
-        chapters_with_titles = list_available_chapters_with_titles()
-        organized_chapters = organize_chapters_by_working_group(chapters_with_titles)
-        
-        for wg, chapters in organized_chapters.items():
-            st.write(f"**{wg.upper()}:**")
-            for chapter in chapters:
-                st.write(f"  - {chapter['chapter_num']} ({chapter['size']}): {chapter['title']}")
-    except Exception as e:
-        st.error(f"Error loading chapter information: {e}")
+    if st.button("💾 Save Model Settings"):
+        st.session_state.model_name = model_name
+        st.session_state.device = device
+        st.success("Model settings saved!")
+    
+    # Performance Tips
+    st.subheader("💡 Performance Tips")
+    st.info("""
+    **For better performance:**
+    - Use `gpt2-large` for best answer quality
+    - Use `gpt2-medium` for good balance of speed and quality
+    - Use `gpt2` for fastest responses
+    - First chapter load takes longer (processing), subsequent loads are cached
+    - Each user gets isolated sessions
+    """)
 
 
 def main():

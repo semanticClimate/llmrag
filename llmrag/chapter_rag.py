@@ -160,50 +160,63 @@ class ChapterRAG:
         
     def load_chapter(self, chapter_name: str, user_id: str = "default") -> None:
         """
-        Load a chapter for a specific user.
+        Load a specific chapter for a user.
         
         STUDENT EXPLANATION:
-        This method does several important things:
-        1. Finds the HTML file for the requested chapter
-        2. Processes it into chunks (using our HtmlTextSplitter)
-        3. Converts chunks to vectors (embeddings) and stores them
-        4. Creates a RAG pipeline for this user+chapter combination
+        This method loads an IPCC chapter into the RAG system. Here's what happens:
         
-        Think of it like:
-        - Taking a book from the library
-        - Making photocopies of important pages
-        - Creating an index of those pages
-        - Setting up a research desk for this specific user
+        1. **Find the chapter**: Looks for the HTML file in the tests/ipcc directory
+        2. **Check if already loaded**: Avoids reloading the same chapter for the same user
+        3. **Process the chapter**: Converts HTML to text chunks and stores them in a vector database
+        4. **Set up the pipeline**: Creates all the components needed to answer questions
+        
+        The key innovation here is user isolation - each user gets their own copy of the chapter
+        so they can't interfere with each other's work.
         
         Args:
             chapter_name: Chapter name (e.g., "wg1/chapter04")
-            user_id: User identifier for sandbox isolation
+            user_id: User identifier for isolation
         """
-        # Find the chapter directory
-        chapter_path = self.base_path / chapter_name
+        # Create a unique key for this user+chapter combination
+        key = f"{chapter_name}_{user_id}"
         
-        if not chapter_path.exists():
-            raise FileNotFoundError(f"Chapter not found: {chapter_name}")
+        # Check if this chapter is already loaded for this user
+        if key in self.pipelines:
+            print(f"📚 Chapter {chapter_name} already loaded for user {user_id}")
+            return
         
-        # Find HTML file in the chapter directory
-        # Prioritize html_with_ids.html as it contains semantic paragraph IDs
-        html_files = list(chapter_path.glob("*.html"))
-        if not html_files:
-            raise FileNotFoundError(f"No HTML files in {chapter_name}")
-        
-        # Look for html_with_ids.html first, then fall back to other files
+        # Find the HTML file for this chapter
         html_file = None
-        for file in html_files:
-            if file.name == "html_with_ids.html":
-                html_file = file
+        possible_paths = [
+            self.base_path / chapter_name / "html_with_ids.html",
+            self.base_path / chapter_name / "gatsby.html",
+            self.base_path / chapter_name / "de_gatsby.html"
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                html_file = path
                 break
         
         if html_file is None:
-            # Fall back to first available HTML file
-            html_file = html_files[0]
-            print(f"⚠️  Warning: Using {html_file.name} instead of html_with_ids.html")
-        else:
-            print(f"✅ Using html_with_ids.html with semantic paragraph IDs")
+            # Try case-insensitive matching for chapter directories
+            chapter_dir = self.base_path / chapter_name
+            if not chapter_dir.exists():
+                # Look for case variations
+                parent_dir = chapter_dir.parent
+                chapter_name_only = chapter_dir.name
+                for subdir in parent_dir.iterdir():
+                    if subdir.is_dir() and subdir.name.lower() == chapter_name_only.lower():
+                        # Found a case variation, check for HTML files
+                        for html_path in [subdir / "html_with_ids.html", subdir / "gatsby.html", subdir / "de_gatsby.html"]:
+                            if html_path.exists():
+                                html_file = html_path
+                                break
+                        if html_file:
+                            break
+        
+        if html_file is None:
+            raise FileNotFoundError(f"Could not find HTML file for chapter {chapter_name}")
         
         # Create user-specific collection name
         # This ensures each user gets their own isolated space
@@ -211,8 +224,9 @@ class ChapterRAG:
         
         print(f"📖 Loading {chapter_name} for user {user_id}...")
         
-        # Ingest the chapter - this processes the HTML and stores it in the vector database
-        ingest_html_file(str(html_file), collection_name=collection_name)
+        # Ingest the chapter with caching - this processes the HTML and stores it in the vector database
+        # The improved ingestion will check if the collection already exists and skip if it does
+        ingest_html_file(str(html_file), collection_name=collection_name, force_reingest=False)
         
         # Create pipeline with real model
         # This sets up all the components needed to answer questions
@@ -222,7 +236,6 @@ class ChapterRAG:
         pipeline = RAGPipeline(vector_store=retriever, model=llm)  # Orchestrates everything
         
         # Store pipeline for this user+chapter combination
-        key = f"{chapter_name}_{user_id}"
         self.pipelines[key] = pipeline
         
         print(f"✅ Chapter loaded successfully!")

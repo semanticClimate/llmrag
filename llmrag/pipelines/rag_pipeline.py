@@ -49,32 +49,17 @@ class RAGPipeline:
                 seen.add(doc.page_content)
                 unique_docs.append(doc)
 
-        context = "\n".join(doc.page_content for doc in unique_docs)
+        context = "\n\n".join(doc.page_content for doc in unique_docs)
 
         # Check if this is a section-specific query
         section_match = self._extract_section_query(query)
         
         if section_match:
-            # Use a more focused prompt for section queries
-            prompt = f"""You are a helpful assistant answering questions about specific sections of a document. 
-Use ONLY the following context to answer the user's question about section {section_match}.
-If the answer is not in the context, say "I don't know."
-
-Context:
-{context}
-
-Question: {query}
-Answer:"""
+            # Use a focused prompt for section queries
+            prompt = self._create_section_prompt(context, query, section_match)
         else:
-            # Use the standard prompt for general queries
-            prompt = f"""You are a helpful assistant. Use ONLY the following context to answer the user's question.
-If the answer is not in the context, say "I don't know."
-
-Context:
-{context}
-
-Question: {query}
-Answer:"""
+            # Use the enhanced scientific prompt for general queries
+            prompt = self._create_scientific_prompt(context, query)
 
         answer = self.model.generate(prompt, temperature=temperature)
         
@@ -95,6 +80,50 @@ Answer:"""
             "context": unique_docs,
             "paragraph_ids": unique_paragraph_ids
         }
+
+    def _create_scientific_prompt(self, context: str, query: str) -> str:
+        """
+        Create a sophisticated prompt optimized for scientific IPCC content.
+        """
+        return f"""You are a climate science expert analyzing IPCC (Intergovernmental Panel on Climate Change) reports. 
+Your task is to provide accurate, evidence-based answers using ONLY the provided context from IPCC chapters.
+
+CRITICAL GUIDELINES:
+1. **Base your answer ONLY on the provided context** - do not use external knowledge
+2. **Be precise and scientific** - use technical terminology appropriate for climate science
+3. **Cite specific data and findings** when available in the context
+4. **Acknowledge uncertainty** - IPCC reports often discuss confidence levels and uncertainty ranges
+5. **If the context is insufficient**, say "Based on the provided context, I cannot provide a complete answer"
+6. **Structure your response clearly** with key points and supporting evidence
+7. **Avoid generic statements** - be specific about what the IPCC report actually states
+
+CONTEXT FROM IPCC REPORT:
+{context}
+
+QUESTION: {query}
+
+ANSWER:"""
+
+    def _create_section_prompt(self, context: str, query: str, section_number: str) -> str:
+        """
+        Create a focused prompt for section-specific queries.
+        """
+        return f"""You are a climate science expert analyzing a specific section ({section_number}) of an IPCC report.
+Use ONLY the following context to answer the user's question about this section.
+
+SECTION-SPECIFIC GUIDELINES:
+1. **Focus on section {section_number}** - only use information from this specific section
+2. **Be precise about what this section covers** - don't generalize beyond the section scope
+3. **If the section doesn't address the question**, say "Section {section_number} does not address this question"
+4. **Cite specific findings** from this section when available
+5. **Maintain scientific accuracy** - use the exact language and data from the section
+
+CONTEXT FROM SECTION {section_number}:
+{context}
+
+QUESTION: {query}
+
+ANSWER:"""
 
     def _extract_section_query(self, query: str) -> str:
         """
